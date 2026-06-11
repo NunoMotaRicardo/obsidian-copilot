@@ -5,6 +5,7 @@ status: open
 type: feature
 spec: copilot-service
 created: 2026-06-12
+github: https://github.com/NunoMotaRicardo/obsidian-copilot/issues/6
 ---
 
 # Cloud / remote sessions — backlog

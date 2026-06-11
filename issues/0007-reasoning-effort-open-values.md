@@ -5,6 +5,7 @@ status: open
 type: bug
 spec: chat-view
 created: 2026-06-12
+github: https://github.com/NunoMotaRicardo/obsidian-copilot/issues/7
 ---
 
 # Reasoning effort: model-reported values beyond the SDK union

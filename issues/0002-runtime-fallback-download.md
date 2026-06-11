@@ -5,6 +5,7 @@ status: open
 type: feature
 spec: runtime-manager
 created: 2026-06-12
+github: https://github.com/NunoMotaRicardo/obsidian-copilot/issues/2
 ---
 
 # Runtime manager with fallback download

@@ -5,6 +5,7 @@ status: open
 type: feature
 spec: chat-view
 created: 2026-06-12
+github: https://github.com/NunoMotaRicardo/obsidian-copilot/issues/4
 ---
 
 # Long-context tier toggle
