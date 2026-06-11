@@ -1,6 +1,5 @@
-import {CopilotClient, CopilotSession, approveAll} from '@github/copilot-sdk';
+import {CopilotClient, CopilotSession, RuntimeConnection, approveAll} from '@github/copilot-sdk';
 import type {
-	ConnectionState,
 	CustomAgentConfig,
 	ModelInfo,
 	SessionConfig,
@@ -9,8 +8,8 @@ import type {
 	GetAuthStatusResponse,
 	AssistantMessageEvent,
 	MCPServerConfig,
-	MCPRemoteServerConfig,
-	MCPLocalServerConfig,
+	MCPHTTPServerConfig,
+	MCPStdioServerConfig,
 	SessionEvent,
 	SessionEventType,
 	MessageOptions,
@@ -25,6 +24,13 @@ import type {
 	ElicitationFieldValue,
 } from '@github/copilot-sdk';
 import type {ProviderConfig, UserInputHandler, UserInputRequest, UserInputResponse, ReasoningEffort} from '@github/copilot-sdk/dist/types';
+
+/**
+ * Connection state tracked by CopilotService.
+ * SDK 1.x removed CopilotClient.getState(); the service tracks state itself
+ * around start()/stop() so the rest of the plugin keeps the same contract.
+ */
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 // Available at runtime in the esbuild CJS bundle.
 const nodeRequire = typeof globalThis.require === 'function' ? globalThis.require : undefined;
@@ -143,12 +149,14 @@ export class CopilotService {
 		this.onListModels = opts?.onListModels;
 	}
 
+	private state: ConnectionState = 'disconnected';
+
 	private async createClient(): Promise<CopilotClient> {
 		if (this.cliUrl) {
 			// Remote mode — connect to existing server
 			return new CopilotClient({
-				cliUrl: this.cliUrl,
-				...(this.githubToken ? {githubToken: this.githubToken} : {}),
+				connection: RuntimeConnection.forUri(this.cliUrl),
+				...(this.githubToken ? {gitHubToken: this.githubToken} : {}),
 				...(this.onListModels ? {onListModels: this.onListModels} : {}),
 			});
 		}
@@ -156,10 +164,10 @@ export class CopilotService {
 		const cliPath = this.cliPath || await resolveDefaultCliPath();
 		const os = nodeRequire?.('node:os') as typeof import('node:os') ?? await import('node:os');
 		return new CopilotClient({
-			cliPath: cliPath,
-			cwd: os.homedir(),
+			connection: RuntimeConnection.forStdio({path: cliPath}),
+			workingDirectory: os.homedir(),
 			env: cleanEnv(),
-			...(this.githubToken ? {githubToken: this.githubToken} : {}),
+			...(this.githubToken ? {gitHubToken: this.githubToken} : {}),
 			...(this.useLoggedInUser !== undefined ? {useLoggedInUser: this.useLoggedInUser} : {}),
 			...(this.onListModels ? {onListModels: this.onListModels} : {}),
 		});
@@ -170,24 +178,34 @@ export class CopilotService {
 	 * If the client is in a broken state, recreates it before starting.
 	 */
 	async ensureConnected(): Promise<void> {
-		if (!this.client) {
-			this.client = await this.createClient();
-		}
-		const state = this.client.getState();
-		if (state === 'connected') {
+		if (this.client && this.state === 'connected') {
 			return;
 		}
-		if (state === 'error') {
-			// Previous client is broken — tear it down and recreate.
-			try { await this.client.forceStop(); } catch { /* ignore */ }
+		if (!this.client || this.state === 'error') {
+			// No client yet, or the previous one is broken — tear down and recreate.
+			if (this.client) {
+				try { await this.client.forceStop(); } catch { /* ignore */ }
+			}
 			this.client = await this.createClient();
 		}
-		await this.client.start();
+		this.state = 'connecting';
+		try {
+			await this.client.start();
+			this.state = 'connected';
+		} catch (e) {
+			this.state = 'error';
+			const detail = e instanceof Error ? e.message : String(e);
+			throw new Error(
+				`Could not connect to the Copilot CLI (${detail}). ` +
+				'Make sure the CLI is installed and up to date — run "copilot update" ' +
+				'(SDK 1.x requires a recent CLI).',
+			);
+		}
 	}
 
 	/** Current connection state. */
 	getState(): ConnectionState {
-		return this.client?.getState() ?? 'disconnected';
+		return this.client ? this.state : 'disconnected';
 	}
 
 	// ── Authentication ──────────────────────────────────────────────
@@ -347,7 +365,7 @@ export class CopilotService {
 	// ── Health ───────────────────────────────────────────────────────
 
 	/** Ping the Copilot CLI server to verify connectivity. */
-	async ping(): Promise<{message: string; timestamp: number}> {
+	async ping(): Promise<{message: string; timestamp: string; protocolVersion?: number}> {
 		await this.ensureConnected();
 		return await this.client!.ping();
 	}
@@ -365,6 +383,7 @@ export class CopilotService {
 			console.error('Copilot service stop errors:', errors);
 			await this.client.forceStop();
 		}
+		this.state = 'disconnected';
 	}
 }
 
@@ -374,14 +393,13 @@ export type {
 	CopilotSession,
 	ModelInfo,
 	SessionMetadata,
-	ConnectionState,
 	GetAuthStatusResponse,
 	CustomAgentConfig,
 	AssistantMessageEvent,
 	SessionConfig,
 	MCPServerConfig,
-	MCPRemoteServerConfig,
-	MCPLocalServerConfig,
+	MCPHTTPServerConfig,
+	MCPStdioServerConfig,
 	SessionEvent,
 	SessionEventType,
 	MessageOptions,
