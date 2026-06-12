@@ -9,10 +9,8 @@ Status: **planned** (issue 0002). Today the logic lives as free functions in `sr
    1. Explicit path from settings (`copilotCliPath`).
    2. Global npm prefix: `%APPDATA%\npm\node_modules\@github\copilot-<platform>-<arch>\copilot(.exe)`
       (also nested under `@github/copilot/node_modules/...`).
-   3. WinGet links: `%LOCALAPPDATA%\Microsoft\WinGet\Links\copilot.exe`.
    4. **Plugin-managed fallback binary** (see below), if previously downloaded.
-   5. Fail with a actionable error (offer download, or `npm i -g @github/copilot`).
-
+   5. Fail with an actionable error (offer download, or `npm i -g @github/copilot`).
 2. **Fallback download** (the "Both, bundled as fallback" decision):
    - Download the platform package tarball directly from the npm registry — no npm needed:
      `https://registry.npmjs.org/@github/copilot-<platform>-<arch>/-/copilot-<platform>-<arch>-<version>.tgz`
