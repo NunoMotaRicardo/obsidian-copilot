@@ -23,6 +23,9 @@ The Sidekick panel sits in the right sidebar alongside your notes. Pick an agent
 
 ## Quick start
 
+> [!IMPORTANT]
+> Sidekick 1.2.2+ requires Obsidian Desktop 1.13.0 or newer (Node.js 20.19+ runtime) when using `@github/copilot-sdk@1.x`.
+
 1. **Install** — Either:
    - **Via BRAT** — Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) community plugin, then add `https://github.com/vieiraae/obsidian-sidekick` as a beta plugin. BRAT handles downloads and updates automatically.
    - **Manual** — Download `main.js`, `styles.css`, and `manifest.json` from the [latest release](https://github.com/vieiraae/obsidian-sidekick/releases/latest) into `<YourVault>/.obsidian/plugins/sidekick/`. Then reload Obsidian and enable **Sidekick** in **Settings → Community plugins**.

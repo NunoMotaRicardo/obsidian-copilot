@@ -129,6 +129,7 @@ function cleanEnv(): Record<string, string> {
  */
 export class CopilotService {
 	private client: CopilotClient | null = null;
+	private connectPromise: Promise<void> | null = null;
 	private readonly cliPath: string | undefined;
 	private readonly cliUrl: string | undefined;
 	private readonly githubToken: string | undefined;
@@ -181,25 +182,42 @@ export class CopilotService {
 		if (this.client && this.state === 'connected') {
 			return;
 		}
-		if (!this.client || this.state === 'error') {
-			// No client yet, or the previous one is broken — tear down and recreate.
-			if (this.client) {
-				try { await this.client.forceStop(); } catch { /* ignore */ }
-			}
-			this.client = await this.createClient();
+
+		if (this.connectPromise) {
+			await this.connectPromise;
+			return;
 		}
-		this.state = 'connecting';
+
+		const connectAttempt = (async () => {
+			if (!this.client || this.state === 'error') {
+				// No client yet, or the previous one is broken — tear down and recreate.
+				if (this.client) {
+					try { await this.client.forceStop(); } catch { /* ignore */ }
+				}
+				this.client = await this.createClient();
+			}
+			this.state = 'connecting';
+			try {
+				await this.client.start();
+				this.state = 'connected';
+			} catch (e) {
+				this.state = 'error';
+				const detail = e instanceof Error ? e.message : String(e);
+				throw new Error(
+					`Could not connect to the Copilot CLI (${detail}). ` +
+					'Make sure the CLI is installed and up to date — run "copilot update" ' +
+					'(SDK 1.x requires a recent CLI).',
+				);
+			}
+		})();
+
+		this.connectPromise = connectAttempt;
 		try {
-			await this.client.start();
-			this.state = 'connected';
-		} catch (e) {
-			this.state = 'error';
-			const detail = e instanceof Error ? e.message : String(e);
-			throw new Error(
-				`Could not connect to the Copilot CLI (${detail}). ` +
-				'Make sure the CLI is installed and up to date — run "copilot update" ' +
-				'(SDK 1.x requires a recent CLI).',
-			);
+			await connectAttempt;
+		} finally {
+			if (this.connectPromise === connectAttempt) {
+				this.connectPromise = null;
+			}
 		}
 	}
 
@@ -377,13 +395,32 @@ export class CopilotService {
 	 * Call this from the plugin's `onunload()`.
 	 */
 	async stop(): Promise<void> {
-		if (!this.client) return;
-		const errors = await this.client.stop();
-		if (errors.length > 0) {
-			console.error('Copilot service stop errors:', errors);
-			await this.client.forceStop();
+		if (!this.client) {
+			this.state = 'disconnected';
+			this.connectPromise = null;
+			return;
 		}
-		this.state = 'disconnected';
+		try {
+			const errors = await this.client.stop();
+			if (errors.length > 0) {
+				console.error('Copilot service stop errors:', errors);
+				try {
+					await this.client.forceStop();
+				} catch (forceStopError) {
+					console.error('Copilot service forceStop failed:', forceStopError);
+				}
+			}
+		} catch (stopError) {
+			console.error('Copilot service stop failed:', stopError);
+			try {
+				await this.client.forceStop();
+			} catch (forceStopError) {
+				console.error('Copilot service forceStop failed:', forceStopError);
+			}
+		} finally {
+			this.state = 'disconnected';
+			this.connectPromise = null;
+		}
 	}
 }
 
