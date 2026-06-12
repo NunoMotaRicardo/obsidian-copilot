@@ -702,7 +702,7 @@ export function installSessionSidebar(ViewClass: {prototype: unknown}): void {
 			}
 
 			// Load message history from SDK
-			const events = await session.getMessages();
+			const events = await session.getEvents();
 			const renderPromises: Promise<void>[] = [];
 			let pendingReasoning: string | undefined;
 			for (const event of events) {

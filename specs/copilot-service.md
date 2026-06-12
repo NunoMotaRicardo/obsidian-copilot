@@ -1,0 +1,53 @@
+# copilot-service
+
+Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin touches
+`@github/copilot-sdk`. Every other module goes through this wrapper.
+
+## Responsibilities
+
+- Own one `CopilotClient` and its lifecycle (`ensureConnected`, `stop`).
+- Create / resume / list / delete sessions with plugin-wide defaults (`clientName: 'obsidian-sidekick'`).
+- One-shot helpers: `chat()` (ephemeral session) and `inlineChat()` (persisted session) used by
+  editor actions, ghost text, search, triggers, and bots.
+- Re-export all SDK types consumed elsewhere so the SDK import surface stays in one file.
+
+## SDK 1.0 contract (post-migration)
+
+- Client construction uses `connection`:
+  - Local: `RuntimeConnection.forStdio({ path })` where `path` comes from runtime-manager
+    resolution (settings override → global npm → WinGet links → SDK fallback).
+  - Remote: `RuntimeConnection.forUri(url)`.
+- Auth: `gitHubToken` (capital H) and `useLoggedInUser` client options.
+- Environment: pass the allowlisted `cleanEnv()` and `workingDirectory: os.homedir()`.
+- Connection state: the SDK no longer exposes `getState()`/`ConnectionState`. The service
+  tracks its own `ConnectionState` (`disconnected | connecting | connected | error`) — set
+  around `start()` — and keeps exposing `getState()` to the rest of the plugin.
+- On `start()` failure, the error surfaced to the UI must mention the likely cause
+  (CLI missing or too old → "run `copilot update`").
+- `ping()` returns `timestamp: string` (ISO), optionally `protocolVersion`.
+- Message history: `session.getEvents()` (was `getMessages()`).
+- MCP config types: `MCPServerConfig = MCPStdioServerConfig | MCPHTTPServerConfig`.
+
+## Session options passed through (selected)
+
+| Option | Source |
+|---|---|
+| `model` | toolbar / agent frontmatter / settings |
+| `reasoningEffort` | settings + toolbar brain menu, only when `model.capabilities.supports.reasoningEffort` |
+| `reasoningSummary` | planned — issue 0003 |
+| `contextTier` | planned — issue 0004 |
+| `infiniteSessions` | planned — issue 0005 |
+| `systemMessage` | agent body / built-in prompts |
+| `customAgents`, `agent` | config-loader agents |
+| `mcpServers` | config-loader `tools/mcp.json` |
+| `skillDirectories`, `disabledSkills` | config-loader skills |
+| `onPermissionRequest` | tool-approval modal or `approveAll` |
+| `onUserInputRequest`, `onElicitationRequest` | modals |
+| `provider` | BYOK settings |
+
+## Invariants
+
+- No other module imports `@github/copilot-sdk` directly (modals import types only — keep
+  type-only imports acceptable).
+- `stop()` is called from plugin `onunload()`; must not throw.
+- All public methods call `ensureConnected()` first; a broken client is recreated, never reused.
