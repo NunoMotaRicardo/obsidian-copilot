@@ -961,6 +961,8 @@ export class SidekickView extends ItemView {
 			onUserInputRequest: userInputHandler,
 			onElicitationRequest: elicitationHandler,
 			workingDirectory: this.getWorkingDirectory(),
+			// Cast at the SDK boundary: models report effort/summary values beyond the
+			// SDK's narrow unions (see issue 7); validity is enforced in the toolbar.
 			...(reasoningEffort !== '' ? {reasoningEffort: reasoningEffort as ReasoningEffort} : {}),
 			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as ReasoningSummary} : {}),
 			...(provider ? {provider} : {}),

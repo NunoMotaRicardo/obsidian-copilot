@@ -22,14 +22,18 @@ function summaryLabel(mode: string): string {
 }
 
 /**
- * Build the reasoning options for `session.setModel()` from settings.
+ * Build the reasoning options for `session.setModel()` from settings, validated
+ * against the model's reported `supportedReasoningEfforts`. A persisted effort
+ * not in `supported` is dropped (e.g. after switching to a model that lacks it).
  * The SDK narrows `reasoningEffort`/`reasoningSummary` to unions that lag the
  * values models actually report, so the cast is localized here (see issue 7).
- * Returns `undefined` when nothing is set, so model defaults apply.
+ * Returns `undefined` when nothing applies, so model defaults take over.
  */
-function reasoningSetModelOptions(settings: SidekickSettings): {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} | undefined {
+function reasoningSetModelOptions(settings: SidekickSettings, supported: string[] | undefined): {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} | undefined {
 	const opts: {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} = {};
-	if (settings.reasoningEffort) opts.reasoningEffort = settings.reasoningEffort as ReasoningEffort;
+	if (settings.reasoningEffort && (supported?.includes(settings.reasoningEffort) ?? false)) {
+		opts.reasoningEffort = settings.reasoningEffort as ReasoningEffort;
+	}
 	if (settings.reasoningSummary) opts.reasoningSummary = settings.reasoningSummary as ReasoningSummary;
 	return Object.keys(opts).length > 0 ? opts : undefined;
 }
@@ -85,9 +89,10 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		this.modelSelect.addEventListener('change', () => {
 			const newModel = this.modelSelect.value;
 			this.selectedModel = newModel;
-			// Mid-session model switch — carries current reasoning effort + summary.
-			this.applyReasoningToSession();
+			// Reset any reasoning effort the new model doesn't support first, then
+			// carry the (now-valid) effort + summary into the mid-session switch.
 			this.updateReasoningBadge();
+			this.applyReasoningToSession();
 		});
 
 		// Skills button
@@ -189,8 +194,13 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 
 	proto.applyReasoningToSession = function(): void {
 		if (this.currentSession && !this.configDirty) {
+			const model = this.getSelectedModelInfo();
+			const supported = model?.supportedReasoningEfforts as string[] | undefined;
+			const supportsReasoning = !!model?.capabilities?.supports?.reasoningEffort && (supported?.length ?? 0) > 0;
 			// Mid-session change — pass effort + summary together so neither resets.
-			void this.currentSession.setModel(this.selectedModel, reasoningSetModelOptions(this.plugin.settings));
+			// Skip reasoning options entirely for models that don't support them.
+			const opts = supportsReasoning ? reasoningSetModelOptions(this.plugin.settings, supported) : undefined;
+			void this.currentSession.setModel(this.selectedModel, opts);
 		} else {
 			this.configDirty = true;
 		}

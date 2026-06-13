@@ -368,6 +368,8 @@ export class TelegramBotService {
 			streaming: providerPreset !== 'foundry-local',
 			onPermissionRequest: permissionHandler,
 			workingDirectory: basePath,
+			// Cast at the SDK boundary: models report effort/summary values beyond the
+			// SDK's narrow unions (see issue 7); validity is enforced in the toolbar.
 			...(reasoningEffort !== '' ? {reasoningEffort: reasoningEffort as import('../copilot').ReasoningEffort} : {}),
 			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as import('../copilot').ReasoningSummary} : {}),
 			...(provider ? {provider} : {}),
