@@ -16,6 +16,7 @@ import type {
 	PermissionRequest,
 	ProviderConfig,
 	ReasoningEffort,
+	ReasoningSummary,
 	CustomAgentConfig,
 } from './copilot';
 import type {AgentConfig, SkillInfo, McpServerEntry, McpInputVariable, PromptConfig, TriggerConfig, ChatMessage, ChatAttachment} from './types';
@@ -951,6 +952,7 @@ export class SidekickView extends ItemView {
 		}
 
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
+		const reasoningSummary = this.plugin.settings.reasoningSummary;
 
 		return {
 			model: (provider && this.plugin.settings.providerModel) ? this.plugin.settings.providerModel : opts.model,
@@ -959,7 +961,10 @@ export class SidekickView extends ItemView {
 			onUserInputRequest: userInputHandler,
 			onElicitationRequest: elicitationHandler,
 			workingDirectory: this.getWorkingDirectory(),
+			// Cast at the SDK boundary: models report effort/summary values beyond the
+			// SDK's narrow unions (see issue 7); validity is enforced in the toolbar.
 			...(reasoningEffort !== '' ? {reasoningEffort: reasoningEffort as ReasoningEffort} : {}),
+			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as ReasoningSummary} : {}),
 			...(provider ? {provider} : {}),
 			...(Object.keys(mcpServers).length > 0 ? {mcpServers} : {}),
 			...(customAgents.length > 0 ? {customAgents} : {}),

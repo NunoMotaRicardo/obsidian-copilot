@@ -23,7 +23,7 @@ import type {
 	ElicitationSchemaField,
 	ElicitationFieldValue,
 } from '@github/copilot-sdk';
-import type {ProviderConfig, UserInputHandler, UserInputRequest, UserInputResponse, ReasoningEffort} from '@github/copilot-sdk/dist/types';
+import type {ProviderConfig, UserInputHandler, UserInputRequest, UserInputResponse, ReasoningEffort, ReasoningSummary} from '@github/copilot-sdk/dist/types';
 
 /**
  * Connection state tracked by CopilotService.
@@ -449,6 +449,7 @@ export type {
 	SessionListFilter,
 	ProviderConfig,
 	ReasoningEffort,
+	ReasoningSummary,
 	ElicitationHandler,
 	ElicitationContext,
 	ElicitationResult,

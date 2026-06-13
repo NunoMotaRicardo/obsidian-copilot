@@ -12,8 +12,10 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
   (completions/responses). BYOK flows into `SessionConfigBase.provider` and a custom
   `onListModels` handler in `main.ts`.
 - **Sidekick** — inline-operations model, sidekick folder name, tools approval (allow/ask),
-  ghost-text toggle, reasoning effort (`'' | low | medium | high | xhigh`), search mode/agent.
-  Planned: reasoning summary (0003), long-context default (0004), infinite sessions (0005).
+  ghost-text toggle, reasoning effort (`string`, `''` = model default; validated against the
+  model's `supportedReasoningEfforts`), reasoning summary (`'' | none | concise | detailed`),
+  search mode/agent. Both reasoning controls live in the chat toolbar's brain menu, not a
+  settings-tab field. Planned: long-context default (0004), infinite sessions (0005).
 - **Bots** — Telegram bot config (token stored via `localStorage`, not `data.json`).
 - **MCP input variables** — stored values for `${input:...}` placeholders; passwords kept in
   localStorage only.
@@ -21,6 +23,7 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
 ## Invariants
 
 - Secrets (tokens, password inputs) never land in `data.json`.
-- `reasoningEffort: ''` means "model default" — never send the empty string to the SDK.
+- `reasoningEffort: ''` / `reasoningSummary: ''` mean "model default" — never send the empty
+  string to the SDK; the field is omitted from the session config instead.
 - Settings changes that affect an active session mark the session config dirty; a new or
   reconfigured session picks them up.
