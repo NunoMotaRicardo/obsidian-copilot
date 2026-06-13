@@ -681,9 +681,8 @@ export class SidekickSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(capPanel)
-			.setName('Show inline Sidekick icon')
-			.setDesc('Show the floating Sidekick icon next to the active line in the editor.')
-			.addToggle(toggle => toggle
+.setName('Show inline Sidekick icon')
+			.setDesc('Show the Sidekick icon in the editor gutter next to the active line.')
 				.setValue(this.plugin.settings.inlineIconEnabled)
 				.onChange(async (value) => {
 					this.plugin.settings.inlineIconEnabled = value;
