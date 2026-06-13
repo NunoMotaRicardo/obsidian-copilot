@@ -28,6 +28,8 @@ export interface SidekickSettings {
 	inlineModel: string;
 	/** Enable ghost-text autocomplete in the editor. */
 	autocompleteEnabled: boolean;
+	/** Show the inline Sidekick icon on the active editor line. */
+	inlineIconEnabled: boolean;
 	/** Provider preset for BYOK. 'github' uses built-in auth. */
 	providerPreset: 'github' | 'openai' | 'azure' | 'anthropic' | 'ollama' | 'foundry-local' | 'other-openai';
 	/** Base URL for the BYOK provider endpoint. */
@@ -112,6 +114,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	toolApproval: 'ask',
 	inlineModel: '',
 	autocompleteEnabled: false,
+	inlineIconEnabled: false,
 	providerPreset: 'github',
 	providerBaseUrl: '',
 	providerApiKey: '',
@@ -685,6 +688,16 @@ export class SidekickSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.autocompleteEnabled)
 				.onChange(async (value) => {
 					this.plugin.settings.autocompleteEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(capPanel)
+			.setName('Show inline Sidekick icon')
+			.setDesc('Show the Sidekick icon in the editor gutter next to the active line.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.inlineIconEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.inlineIconEnabled = value;
 					await this.plugin.saveSettings();
 				}));
 
