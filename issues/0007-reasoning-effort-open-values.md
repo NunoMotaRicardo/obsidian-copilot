@@ -1,7 +1,7 @@
 ---
 id: 7
 title: Reasoning effort — handle model-reported values beyond the SDK union
-status: open
+status: done
 type: bug
 spec: chat-view
 created: 2026-06-12
@@ -23,7 +23,27 @@ directly, so `max`/`none` are selectable and work at runtime — but only by acc
 
 ## Changes
 
-- [ ] Widen the persisted type to `string` (empty = model default) and drop the casts;
+- [x] Widen the persisted type to `string` (empty = model default) and drop the casts;
       validity is already enforced against `model.supportedReasoningEfforts` at render time.
-- [ ] Label mapping for `none` ("Off") and `max` in the menu/badge.
-- [ ] Same handling in `telegramBot.ts` and `sidekickView.ts` pass-throughs.
+- [x] Label mapping for `none` ("Off") and `max` in the menu/badge.
+- [x] Same handling in `telegramBot.ts` and `sidekickView.ts` pass-throughs.
+
+## Implementation notes
+
+- `settings.reasoningEffort` widened to `string`. `'' ` (omit field = model default) and
+  `none` (explicitly sent) are kept distinct — agreed with the user 2026-06-13. Re-selecting
+  the active level toggles back to `''`.
+- Menu/badge logic in `configToolbar.ts` now reads `supportedReasoningEfforts` as `string[]`,
+  so the internal `as ReasoningEffort` casts are gone. `effortLabel()` maps `none`→"Off",
+  others Title-case (`max`→"Max").
+- The SDK still narrows `reasoningEffort` on `setModel`/`SessionConfig`, so a single
+  cast survives at each SDK boundary (`reasoningSetModelOptions` in `configToolbar.ts`, and the
+  session-config builders in `sidekickView.ts` / `bots/telegramBot.ts`), with a comment noting
+  the SDK union lags runtime values.
+
+## Verification log
+
+- 2026-06-13: `tsc -noEmit` + eslint clean; production build (`npm run build`) succeeds;
+  deployed to the vault and `obsidian plugin:reload id=sidekick` loaded without error.
+- Pending manual check: open the chat brain menu with claude-sonnet-4.6 (expect `Max`) and
+  gpt-5.4 (expect `Off`/`Max`); confirm selecting `max` persists and reaches the model.

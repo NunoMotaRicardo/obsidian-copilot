@@ -19,9 +19,21 @@ vault scope, folder tree.
 
 - Streaming: sessions are created with `streaming: true`; renderer accumulates
   `assistant.message_delta` / `assistant.reasoning_delta`, finalizes on `assistant.message`.
-- Reasoning-effort menu shows only when the selected model reports
+- Reasoning menu (brain icon) shows only when the selected model reports
   `capabilities.supports.reasoningEffort` and a non-empty `supportedReasoningEfforts`; an
   unsupported persisted level resets to `''`.
+  - Effort levels are iterated from `supportedReasoningEfforts` and stored as a free string
+    (`settings.reasoningEffort`), because models report values beyond the SDK's
+    `ReasoningEffort` union (e.g. `max`, `none`). `none` is labelled "Off"; `''` = model
+    default. Re-selecting the active level toggles back to `''`.
+  - A **Reasoning summary** submenu (gated on the same capability) sets
+    `settings.reasoningSummary` to `''` (model default), `none`, `concise`, or `detailed`.
+    `none` suppresses reasoning output, so no reasoning block is rendered (the block is only
+    ever created from reasoning events).
+  - Both values are passed together on every mid-session `session.setModel()` call so neither
+    resets, and flow into new sessions via `sessionConfig` in `sidekickView.ts` and
+    `bots/telegramBot.ts`. The SDK-boundary cast to `ReasoningEffort`/`ReasoningSummary` is
+    localized (the unions lag the values models actually report).
 - Session restore: resume by id with the full current session config, re-select agent via
   `session.rpc.agent.select`, replay history from `session.getEvents()`
   (`user.message`, `assistant.reasoning`, `assistant.message`).
@@ -31,6 +43,5 @@ vault scope, folder tree.
 
 ## Planned changes
 
-- Issue 0003: reasoning-summary control next to the reasoning-effort menu.
 - Issue 0004: long-context tier toggle in the model menu (only for supporting models).
 - Issue 0005: infinite-sessions (auto-compaction) setting + compaction visibility in debug view.

@@ -48,8 +48,18 @@ export interface SidekickSettings {
 	triggerLastFired?: Record<string, number>;
 	/** Stored values for non-password MCP input variables, keyed by input id. */
 	mcpInputValues?: Record<string, string>;
-	/** Reasoning effort level for model inference. 'default' means unset. */
-	reasoningEffort: '' | 'low' | 'medium' | 'high' | 'xhigh';
+	/**
+	 * Reasoning effort level for model inference. '' = model default.
+	 * Stored as a free string because models report values beyond the SDK's
+	 * `ReasoningEffort` union (e.g. 'max', 'none'); validity is enforced against
+	 * `model.supportedReasoningEfforts` at render time.
+	 */
+	reasoningEffort: string;
+	/**
+	 * Reasoning summary mode. '' = model default; otherwise 'none' | 'concise' |
+	 * 'detailed' (SDK `ReasoningSummary`). 'none' suppresses reasoning output.
+	 */
+	reasoningSummary: string;
 	/** Agent name used for semantic search. */
 	searchAgent: string;
 	/** Search mode: 'basic' reuses session with minimal config, 'advanced' allows full agent/model/skills/tools. */
@@ -109,6 +119,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	providerWireApi: 'completions',
 	providerModel: '',
 	reasoningEffort: '',
+	reasoningSummary: '',
 	searchAgent: '',
 	searchMode: 'basic',
 	telegramBotId: '',

@@ -1,10 +1,38 @@
 import {Menu, setIcon} from 'obsidian';
 import type {SidekickView} from '../sidekickView';
-import type {ModelInfo, ReasoningEffort} from '../copilot';
+import type {ModelInfo, ReasoningEffort, ReasoningSummary} from '../copilot';
+import type {SidekickSettings} from '../settings';
 import type {AgentConfig} from '../types';
 import {FolderTreeModal} from '../modals';
 import {EditModal} from '../modals/editModal';
 import {setDebugEnabled} from '../debug';
+
+/** Selectable reasoning-summary modes (excludes '' = model default). */
+const REASONING_SUMMARY_MODES = ['none', 'concise', 'detailed'] as const;
+
+/** Human label for a reasoning-effort level. 'none' reads as "Off". */
+function effortLabel(level: string): string {
+	if (level === 'none') return 'Off';
+	return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+/** Human label for a reasoning-summary mode. */
+function summaryLabel(mode: string): string {
+	return mode.charAt(0).toUpperCase() + mode.slice(1);
+}
+
+/**
+ * Build the reasoning options for `session.setModel()` from settings.
+ * The SDK narrows `reasoningEffort`/`reasoningSummary` to unions that lag the
+ * values models actually report, so the cast is localized here (see issue 7).
+ * Returns `undefined` when nothing is set, so model defaults apply.
+ */
+function reasoningSetModelOptions(settings: SidekickSettings): {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} | undefined {
+	const opts: {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} = {};
+	if (settings.reasoningEffort) opts.reasoningEffort = settings.reasoningEffort as ReasoningEffort;
+	if (settings.reasoningSummary) opts.reasoningSummary = settings.reasoningSummary as ReasoningSummary;
+	return Object.keys(opts).length > 0 ? opts : undefined;
+}
 
 declare module '../sidekickView' {
 	interface SidekickView {
@@ -13,6 +41,8 @@ declare module '../sidekickView' {
 		getSelectedModelInfo(): ModelInfo | undefined;
 		openReasoningMenu(e: MouseEvent): void;
 		updateReasoningBadge(): void;
+		applyReasoningToSession(): void;
+		setReasoningSummary(mode: string): void;
 		openSkillsMenu(e: MouseEvent): void;
 		openToolsMenu(e: MouseEvent): void;
 		selectAgent(agentName: string): void;
@@ -55,13 +85,8 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		this.modelSelect.addEventListener('change', () => {
 			const newModel = this.modelSelect.value;
 			this.selectedModel = newModel;
-			if (this.currentSession && !this.configDirty) {
-				// Mid-session model switch via setModel()
-				const effort = this.plugin.settings.reasoningEffort;
-				void this.currentSession.setModel(newModel, effort ? {reasoningEffort: effort as ReasoningEffort} : undefined);
-			} else {
-				this.configDirty = true;
-			}
+			// Mid-session model switch — carries current reasoning effort + summary.
+			this.applyReasoningToSession();
 			this.updateReasoningBadge();
 		});
 
@@ -117,7 +142,9 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 
 	proto.openReasoningMenu = function(e: MouseEvent): void {
 		const model = this.getSelectedModelInfo();
-		const supported = model?.supportedReasoningEfforts;
+		// The SDK narrows supportedReasoningEfforts to its ReasoningEffort union, but
+		// models report values beyond it (e.g. 'max', 'none'); treat them as strings.
+		const supported = model?.supportedReasoningEfforts as string[] | undefined;
 		if (!model?.capabilities?.supports?.reasoningEffort || !supported || supported.length === 0) {
 			const menu = new Menu();
 			menu.addItem(item => item.setTitle('Model does not support reasoning effort').setDisabled(true));
@@ -127,49 +154,77 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		const menu = new Menu();
 		const current = this.plugin.settings.reasoningEffort;
 		for (const level of supported) {
-			const label = level.charAt(0).toUpperCase() + level.slice(1);
 			menu.addItem(item => {
-				item.setTitle(label)
+				item.setTitle(effortLabel(level))
 					.setChecked(level === current)
 					.onClick(() => {
-						// Toggle off if already selected
-						const newEffort = level === current ? '' : level;
-						this.plugin.settings.reasoningEffort = newEffort;
+						// Toggle back to model default if the active level is re-selected.
+						this.plugin.settings.reasoningEffort = level === current ? '' : level;
 						void this.plugin.saveSettings();
-						if (this.currentSession && !this.configDirty) {
-							// Mid-session reasoning change via setModel()
-							void this.currentSession.setModel(
-								this.selectedModel,
-								newEffort ? {reasoningEffort: newEffort} : undefined,
-							);
-						} else {
-							this.configDirty = true;
-						}
+						this.applyReasoningToSession();
 						this.updateReasoningBadge();
 					});
 			});
 		}
+
+		// Reasoning summary submenu (gated on the same reasoning capability).
+		menu.addSeparator();
+		const currentSummary = this.plugin.settings.reasoningSummary;
+		menu.addItem(item => {
+			item.setTitle('Reasoning summary');
+			const sub: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
+			sub.addItem(si => si
+				.setTitle('Model default')
+				.setChecked(currentSummary === '')
+				.onClick(() => this.setReasoningSummary('')));
+			for (const mode of REASONING_SUMMARY_MODES) {
+				sub.addItem(si => si
+					.setTitle(summaryLabel(mode))
+					.setChecked(currentSummary === mode)
+					.onClick(() => this.setReasoningSummary(mode)));
+			}
+		});
 		menu.showAtMouseEvent(e);
+	};
+
+	proto.applyReasoningToSession = function(): void {
+		if (this.currentSession && !this.configDirty) {
+			// Mid-session change — pass effort + summary together so neither resets.
+			void this.currentSession.setModel(this.selectedModel, reasoningSetModelOptions(this.plugin.settings));
+		} else {
+			this.configDirty = true;
+		}
+	};
+
+	proto.setReasoningSummary = function(mode: string): void {
+		this.plugin.settings.reasoningSummary = mode;
+		void this.plugin.saveSettings();
+		this.applyReasoningToSession();
+		this.updateReasoningBadge();
 	};
 
 	proto.updateReasoningBadge = function(): void {
 		const model = this.getSelectedModelInfo();
-		const supportsReasoning = model?.capabilities?.supports?.reasoningEffort && (model.supportedReasoningEfforts?.length ?? 0) > 0;
+		const supported = model?.supportedReasoningEfforts as string[] | undefined;
+		const supportsReasoning = !!model?.capabilities?.supports?.reasoningEffort && (supported?.length ?? 0) > 0;
 		const level = this.plugin.settings.reasoningEffort;
 		// Reset if current level isn't supported by the new model
-		if (level !== '' && supportsReasoning && model?.supportedReasoningEfforts && !model.supportedReasoningEfforts.includes(level as ReasoningEffort)) {
+		if (level !== '' && supportsReasoning && supported && !supported.includes(level)) {
 			this.plugin.settings.reasoningEffort = '';
 			void this.plugin.saveSettings();
 		}
 		const current = this.plugin.settings.reasoningEffort;
-		const active = current !== '' && !!supportsReasoning;
+		const summary = this.plugin.settings.reasoningSummary;
+		const active = (current !== '' || summary !== '') && supportsReasoning;
 		this.modelIconEl.toggleClass('is-active', active);
 		this.modelIconEl.toggleClass('is-non-interactive', !supportsReasoning);
 		if (!supportsReasoning) {
 			this.modelIconEl.setAttribute('title', 'Model does not support reasoning effort');
 		} else {
-			const label = current === '' ? 'Reasoning effort' : `Reasoning effort: ${current.charAt(0).toUpperCase() + current.slice(1)}`;
-			this.modelIconEl.setAttribute('title', label);
+			const parts: string[] = [];
+			if (current !== '') parts.push(`effort ${effortLabel(current).toLowerCase()}`);
+			if (summary !== '') parts.push(`summary ${summaryLabel(summary).toLowerCase()}`);
+			this.modelIconEl.setAttribute('title', parts.length > 0 ? `Reasoning — ${parts.join(', ')}` : 'Reasoning');
 		}
 	};
 

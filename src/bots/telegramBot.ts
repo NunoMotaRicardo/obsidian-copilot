@@ -361,6 +361,7 @@ export class TelegramBotService {
 		}
 
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
+		const reasoningSummary = this.plugin.settings.reasoningSummary;
 
 		return {
 			model: (provider && this.plugin.settings.providerModel) ? this.plugin.settings.providerModel : model,
@@ -368,6 +369,7 @@ export class TelegramBotService {
 			onPermissionRequest: permissionHandler,
 			workingDirectory: basePath,
 			...(reasoningEffort !== '' ? {reasoningEffort: reasoningEffort as import('../copilot').ReasoningEffort} : {}),
+			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as import('../copilot').ReasoningSummary} : {}),
 			...(provider ? {provider} : {}),
 			...(Object.keys(mcpServers).length > 0 ? {mcpServers} : {}),
 			...(customAgents.length > 0 ? {customAgents} : {}),
