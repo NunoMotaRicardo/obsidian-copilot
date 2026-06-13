@@ -182,6 +182,7 @@ function buildIndicatorGutter(plugin: SidekickPlugin): Extension {
 	return gutter({
 		class: 'sidekick-gutter',
 		lineMarker(view: EditorView, line) {
+			if (!plugin.settings.inlineIconEnabled) return null;
 			const cursorLine = view.state.doc.lineAt(view.state.selection.main.head);
 			const thisLine = view.state.doc.lineAt(line.from);
 			if (thisLine.number === cursorLine.number) {

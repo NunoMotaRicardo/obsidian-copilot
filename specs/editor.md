@@ -17,6 +17,8 @@ File/folder explorer menu: note edit, folder summary note, image extraction/merm
 
 CodeMirror 6 extension; debounced completion requests through `CopilotService.chat()` with
 the inline operations model. Tab accepts, Escape dismisses. Enabled via settings toggle.
+The inline Sidekick gutter icon is controlled separately by the **Show inline Sidekick icon**
+setting (off by default).
 
 ## Constraints
 

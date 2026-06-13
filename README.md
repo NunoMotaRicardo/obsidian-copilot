@@ -565,6 +565,7 @@ Click **Connect** next to the Telegram heading. The status updates to show your 
 ### Editor context menu
 
 Right-click in any note → **Sidekick** to access inline AI actions. The menu adapts based on whether you have text selected.
+If you prefer not to see the inline Sidekick icon beside the active line, disable **Show inline Sidekick icon** in **Settings → Sidekick → Capabilities**.
 
 #### With text selected
 
