@@ -953,6 +953,7 @@ export class SidekickView extends ItemView {
 
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
 		const reasoningSummary = this.plugin.settings.reasoningSummary;
+		const contextTier = this.plugin.settings.contextTier;
 
 		return {
 			model: (provider && this.plugin.settings.providerModel) ? this.plugin.settings.providerModel : opts.model,
@@ -965,6 +966,9 @@ export class SidekickView extends ItemView {
 			// SDK's narrow unions (see issue 7); validity is enforced in the toolbar.
 			...(reasoningEffort !== '' ? {reasoningEffort: reasoningEffort as ReasoningEffort} : {}),
 			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as ReasoningSummary} : {}),
+			// No per-model support signal exists; the SDK ignores contextTier for models
+			// that don't support the long-context tier. Omitted when 'default'.
+			...(contextTier !== 'default' ? {contextTier} : {}),
 			...(provider ? {provider} : {}),
 			...(Object.keys(mcpServers).length > 0 ? {mcpServers} : {}),
 			...(customAgents.length > 0 ? {customAgents} : {}),

@@ -1,6 +1,6 @@
 import {App, Modal, Notice, PluginSettingTab, Setting, normalizePath} from "obsidian";
 import SidekickPlugin from "./main";
-import type {ModelInfo, ProviderConfig} from "./copilot";
+import type {ModelInfo, ProviderConfig, ContextTier} from "./copilot";
 import type {McpInputVariable} from "./types";
 import {loadMcpInputs, loadAgents} from "./configLoader";
 
@@ -62,6 +62,14 @@ export interface SidekickSettings {
 	 * 'detailed' (SDK `ReasoningSummary`). 'none' suppresses reasoning output.
 	 */
 	reasoningSummary: string;
+	/**
+	 * Context-window tier for the session. 'default' = model default; 'long_context'
+	 * pins the session to the long-context tier when the selected model supports it
+	 * (the SDK silently ignores it otherwise). Omitted from session config when 'default',
+	 * matching the reasoning omit-when-empty pattern. There is no per-model support signal
+	 * in the SDK, so the toggle is always shown.
+	 */
+	contextTier: ContextTier;
 	/** Agent name used for semantic search. */
 	searchAgent: string;
 	/** Search mode: 'basic' reuses session with minimal config, 'advanced' allows full agent/model/skills/tools. */
@@ -123,6 +131,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	providerModel: '',
 	reasoningEffort: '',
 	reasoningSummary: '',
+	contextTier: 'default',
 	searchAgent: '',
 	searchMode: 'basic',
 	telegramBotId: '',

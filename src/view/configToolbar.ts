@@ -1,6 +1,6 @@
 import {Menu, setIcon} from 'obsidian';
 import type {SidekickView} from '../sidekickView';
-import type {ModelInfo, ReasoningEffort, ReasoningSummary} from '../copilot';
+import type {ModelInfo, ReasoningEffort, ReasoningSummary, ContextTier} from '../copilot';
 import type {SidekickSettings} from '../settings';
 import type {AgentConfig} from '../types';
 import {FolderTreeModal} from '../modals';
@@ -22,19 +22,27 @@ function summaryLabel(mode: string): string {
 }
 
 /**
- * Build the reasoning options for `session.setModel()` from settings, validated
- * against the model's reported `supportedReasoningEfforts`. A persisted effort
- * not in `supported` is dropped (e.g. after switching to a model that lacks it).
+ * Build the options for a mid-session `session.setModel()` call from settings.
+ *
+ * Reasoning effort/summary are gated on `supportsReasoning` and validated against
+ * the model's reported `supportedReasoningEfforts` (a persisted effort not in
+ * `supported` is dropped). Context tier is included whenever it's non-default —
+ * there is no per-model support signal in the SDK, so it's always passed and the
+ * SDK silently ignores it for models that don't support the long-context tier.
+ *
  * The SDK narrows `reasoningEffort`/`reasoningSummary` to unions that lag the
  * values models actually report, so the cast is localized here (see issue 7).
  * Returns `undefined` when nothing applies, so model defaults take over.
  */
-function reasoningSetModelOptions(settings: SidekickSettings, supported: string[] | undefined): {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} | undefined {
-	const opts: {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary} = {};
-	if (settings.reasoningEffort && (supported?.includes(settings.reasoningEffort) ?? false)) {
-		opts.reasoningEffort = settings.reasoningEffort as ReasoningEffort;
+function buildSetModelOptions(settings: SidekickSettings, supported: string[] | undefined, supportsReasoning: boolean): {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary; contextTier?: ContextTier} | undefined {
+	const opts: {reasoningEffort?: ReasoningEffort; reasoningSummary?: ReasoningSummary; contextTier?: ContextTier} = {};
+	if (supportsReasoning) {
+		if (settings.reasoningEffort && (supported?.includes(settings.reasoningEffort) ?? false)) {
+			opts.reasoningEffort = settings.reasoningEffort as ReasoningEffort;
+		}
+		if (settings.reasoningSummary) opts.reasoningSummary = settings.reasoningSummary as ReasoningSummary;
 	}
-	if (settings.reasoningSummary) opts.reasoningSummary = settings.reasoningSummary as ReasoningSummary;
+	if (settings.contextTier !== 'default') opts.contextTier = settings.contextTier;
 	return Object.keys(opts).length > 0 ? opts : undefined;
 }
 
@@ -150,45 +158,60 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		// The SDK narrows supportedReasoningEfforts to its ReasoningEffort union, but
 		// models report values beyond it (e.g. 'max', 'none'); treat them as strings.
 		const supported = model?.supportedReasoningEfforts as string[] | undefined;
-		if (!model?.capabilities?.supports?.reasoningEffort || !supported || supported.length === 0) {
-			const menu = new Menu();
-			menu.addItem(item => item.setTitle('Model does not support reasoning effort').setDisabled(true));
-			menu.showAtMouseEvent(e);
-			return;
-		}
+		const supportsReasoning = !!model?.capabilities?.supports?.reasoningEffort && !!supported && supported.length > 0;
 		const menu = new Menu();
-		const current = this.plugin.settings.reasoningEffort;
-		for (const level of supported) {
+
+		if (supportsReasoning) {
+			const current = this.plugin.settings.reasoningEffort;
+			for (const level of supported!) {
+				menu.addItem(item => {
+					item.setTitle(effortLabel(level))
+						.setChecked(level === current)
+						.onClick(() => {
+							// Toggle back to model default if the active level is re-selected.
+							this.plugin.settings.reasoningEffort = level === current ? '' : level;
+							void this.plugin.saveSettings();
+							this.applyReasoningToSession();
+							this.updateReasoningBadge();
+						});
+				});
+			}
+
+			// Reasoning summary submenu (gated on the same reasoning capability).
+			menu.addSeparator();
+			const currentSummary = this.plugin.settings.reasoningSummary;
 			menu.addItem(item => {
-				item.setTitle(effortLabel(level))
-					.setChecked(level === current)
-					.onClick(() => {
-						// Toggle back to model default if the active level is re-selected.
-						this.plugin.settings.reasoningEffort = level === current ? '' : level;
-						void this.plugin.saveSettings();
-						this.applyReasoningToSession();
-						this.updateReasoningBadge();
-					});
+				item.setTitle('Reasoning summary');
+				const sub: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
+				sub.addItem(si => si
+					.setTitle('Model default')
+					.setChecked(currentSummary === '')
+					.onClick(() => this.setReasoningSummary('')));
+				for (const mode of REASONING_SUMMARY_MODES) {
+					sub.addItem(si => si
+						.setTitle(summaryLabel(mode))
+						.setChecked(currentSummary === mode)
+						.onClick(() => this.setReasoningSummary(mode)));
+				}
 			});
+		} else {
+			menu.addItem(item => item.setTitle('Model does not support reasoning effort').setDisabled(true));
 		}
 
-		// Reasoning summary submenu (gated on the same reasoning capability).
+		// Long-context toggle — always shown. There is no per-model support signal in
+		// the SDK, so it can't be gated; the SDK ignores it for unsupported models.
 		menu.addSeparator();
-		const currentSummary = this.plugin.settings.reasoningSummary;
 		menu.addItem(item => {
-			item.setTitle('Reasoning summary');
-			const sub: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
-			sub.addItem(si => si
-				.setTitle('Model default')
-				.setChecked(currentSummary === '')
-				.onClick(() => this.setReasoningSummary('')));
-			for (const mode of REASONING_SUMMARY_MODES) {
-				sub.addItem(si => si
-					.setTitle(summaryLabel(mode))
-					.setChecked(currentSummary === mode)
-					.onClick(() => this.setReasoningSummary(mode)));
-			}
+			item.setTitle('Long context')
+				.setChecked(this.plugin.settings.contextTier === 'long_context')
+				.onClick(() => {
+					this.plugin.settings.contextTier = this.plugin.settings.contextTier === 'long_context' ? 'default' : 'long_context';
+					void this.plugin.saveSettings();
+					this.applyReasoningToSession();
+					this.updateReasoningBadge();
+				});
 		});
+
 		menu.showAtMouseEvent(e);
 	};
 
@@ -197,9 +220,10 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 			const model = this.getSelectedModelInfo();
 			const supported = model?.supportedReasoningEfforts as string[] | undefined;
 			const supportsReasoning = !!model?.capabilities?.supports?.reasoningEffort && (supported?.length ?? 0) > 0;
-			// Mid-session change — pass effort + summary together so neither resets.
-			// Skip reasoning options entirely for models that don't support them.
-			const opts = supportsReasoning ? reasoningSetModelOptions(this.plugin.settings, supported) : undefined;
+			// Mid-session change — pass effort + summary + context tier together so none
+			// resets. Reasoning options are skipped for models that don't support them;
+			// the context tier is always included (the SDK ignores it when unsupported).
+			const opts = buildSetModelOptions(this.plugin.settings, supported, supportsReasoning);
 			void this.currentSession.setModel(this.selectedModel, opts);
 		} else {
 			this.configDirty = true;
@@ -225,16 +249,22 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		}
 		const current = this.plugin.settings.reasoningEffort;
 		const summary = this.plugin.settings.reasoningSummary;
-		const active = (current !== '' || summary !== '') && supportsReasoning;
+		const longContext = this.plugin.settings.contextTier === 'long_context';
+		// The icon stays interactive even without reasoning support, because the menu
+		// always offers the long-context toggle (no per-model support signal exists).
+		const active = ((current !== '' || summary !== '') && supportsReasoning) || longContext;
 		this.modelIconEl.toggleClass('is-active', active);
-		this.modelIconEl.toggleClass('is-non-interactive', !supportsReasoning);
-		if (!supportsReasoning) {
-			this.modelIconEl.setAttribute('title', 'Model does not support reasoning effort');
-		} else {
-			const parts: string[] = [];
+		this.modelIconEl.toggleClass('is-non-interactive', false);
+		const parts: string[] = [];
+		if (supportsReasoning) {
 			if (current !== '') parts.push(`effort ${effortLabel(current).toLowerCase()}`);
 			if (summary !== '') parts.push(`summary ${summaryLabel(summary).toLowerCase()}`);
-			this.modelIconEl.setAttribute('title', parts.length > 0 ? `Reasoning — ${parts.join(', ')}` : 'Reasoning');
+		}
+		if (longContext) parts.push('long context');
+		if (!supportsReasoning && !longContext) {
+			this.modelIconEl.setAttribute('title', 'Reasoning & context (model does not support reasoning effort)');
+		} else {
+			this.modelIconEl.setAttribute('title', parts.length > 0 ? `Reasoning & context — ${parts.join(', ')}` : 'Reasoning & context');
 		}
 	};
 

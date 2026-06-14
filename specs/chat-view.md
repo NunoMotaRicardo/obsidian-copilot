@@ -34,6 +34,20 @@ vault scope, folder tree.
     resets, and flow into new sessions via `sessionConfig` in `sidekickView.ts` and
     `bots/telegramBot.ts`. The SDK-boundary cast to `ReasoningEffort`/`ReasoningSummary` is
     localized (the unions lag the values models actually report).
+  - A **Long context** toggle in the same menu pins the session to the SDK's
+    `long_context` context-window tier (`settings.contextTier`, `'default' | 'long_context'`,
+    default `'default'`). Unlike reasoning effort there is **no per-model support signal** —
+    `ModelCapabilities.supports` exposes only `vision` and `reasoningEffort`, and `ModelInfo`
+    has no long-context flag (only `limits.max_context_window_tokens`). The toggle is
+    therefore always shown (the menu shows it even for models that don't support reasoning
+    effort, so the model icon stays interactive); the SDK silently ignores `contextTier` for
+    models that don't support the tier. `contextTier` rides along on the same mid-session
+    `session.setModel()` call (`{reasoningEffort, reasoningSummary, contextTier}`) so toggling
+    it doesn't reset reasoning, is omitted from session config when `'default'` (matching the
+    reasoning omit-when-empty pattern), and flows into new/resumed sessions and the Telegram
+    bot through the shared `buildSessionConfig`. `ContextTier` is imported from `../copilot`
+    (CopilotService's SDK re-export). Orthogonal to infinite sessions (issue #5): context tier
+    sets the window size, infinite sessions controls auto-compaction — they compose.
 - Session restore: resume by id with the full current session config, re-select agent via
   `session.rpc.agent.select`, replay history from `session.getEvents()`
   (`user.message`, `assistant.reasoning`, `assistant.message`).
@@ -43,5 +57,4 @@ vault scope, folder tree.
 
 ## Planned changes
 
-- Issue 0004: long-context tier toggle in the model menu (only for supporting models).
 - Issue 0005: infinite-sessions (auto-compaction) setting + compaction visibility in debug view.
