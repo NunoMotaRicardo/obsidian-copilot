@@ -399,6 +399,10 @@ export class SidekickSettingTab extends PluginSettingTab {
 							'js-fallback': 'JS entry-point fallback',
 						};
 						resolvedSetting.descEl.empty();
+						if (!resolved) {
+							resolvedSetting.setDesc('Could not resolve binary path.');
+							return;
+						}
 						resolvedSetting.descEl.createEl('code', {text: resolved.path});
 						resolvedSetting.descEl.createSpan({text: ` (${labels[resolved.source] ?? resolved.source})`});
 					} catch {
