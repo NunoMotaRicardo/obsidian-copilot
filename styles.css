@@ -2126,4 +2126,9 @@ body.sidekick-no-select {
 	color: var(--text-error);
 }
 
+/* ── Resolved Copilot binary path (settings) ──────────────────── */
+.sidekick-resolved-binary {
+	word-break: break-all;
+}
+
 

@@ -379,7 +379,35 @@ export class SidekickSettingTab extends PluginSettingTab {
 							this.plugin.settings.copilotLocation = sanitized;
 							await this.plugin.saveSettings();
 							await this.plugin.initCopilot();
+							void showResolvedBinaryPath();
 						}));
+
+				const resolvedSetting = new Setting(clientFieldsEl)
+					.setName('Resolved binary')
+					.setDesc('Resolving\u2026');
+				resolvedSetting.descEl.addClass('sidekick-resolved-binary');
+				const showResolvedBinaryPath = async () => {
+					try {
+						const resolved = await this.plugin.copilot?.resolveCliPath();
+						if (!resolved) {
+							resolvedSetting.setDesc('Not resolved (remote mode).');
+							return;
+						}
+						const labels: Record<string, string> = {
+							'settings': 'from path setting',
+							'global-npm': 'from global npm install',
+							'winget': 'from WinGet',
+							'plugin-managed': 'from plugin-managed bin/',
+							'js-fallback': 'JS entry-point fallback',
+						};
+						resolvedSetting.descEl.empty();
+						resolvedSetting.descEl.createEl('code', {text: resolved.path});
+						resolvedSetting.descEl.createSpan({text: ` (${labels[resolved.source] ?? resolved.source})`});
+					} catch {
+						resolvedSetting.setDesc('Could not resolve binary path.');
+					}
+				};
+				void showResolvedBinaryPath();
 
 				new Setting(clientFieldsEl)
 					.setName('Use logged\u2011in user')
