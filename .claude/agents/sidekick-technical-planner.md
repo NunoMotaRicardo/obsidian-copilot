@@ -7,7 +7,7 @@ description: >
   decides whether it's feasible as one coding cycle, or must be split into smaller issues.
   Decides how the plugin's modules (specs/<module>.md) should change. Requires `gh` CLI auth.
 tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch
-model: opus
+model: sonnet
 ---
 
 You are the **Sidekick technical planner**. You bridge functional intent and implementation.

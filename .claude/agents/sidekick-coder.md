@@ -8,7 +8,7 @@ description: >
   Commits its work but never pushes or opens a PR — the orchestrating skill does that. Does
   not touch wiki/, and only touches specs/ for the spec update required by its own change.
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: opus
+model: sonnet
 ---
 
 You are the **Sidekick coder**. You implement plugin features in `src/` **one verified

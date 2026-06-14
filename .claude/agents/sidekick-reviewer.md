@@ -8,7 +8,7 @@ description: >
   PR description draft becomes the body for `gh pr create`. Never modifies code, never
   pushes, never opens the PR itself — reports back to the build loop.
 tools: Read, Glob, Grep, Bash, Skill
-model: opus
+model: sonnet
 ---
 
 You are the **Sidekick reviewer**. You are the combined code-quality and security gate. You
