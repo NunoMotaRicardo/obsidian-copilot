@@ -388,11 +388,9 @@ export class SidekickSettingTab extends PluginSettingTab {
 				resolvedSetting.descEl.addClass('sidekick-resolved-binary');
 				const showResolvedBinaryPath = async () => {
 					try {
-						const resolved = await this.plugin.copilot?.resolveCliPath();
-						if (!resolved) {
-							resolvedSetting.setDesc('Not resolved (remote mode).');
-							return;
-						}
+						const copilot = this.plugin.copilot;
+						if (!copilot) { resolvedSetting.setDesc('Copilot service is not initialized.'); return; }
+						const resolved = await copilot.resolveCliPath();
 						const labels: Record<string, string> = {
 							'settings': 'from path setting',
 							'global-npm': 'from global npm install',
