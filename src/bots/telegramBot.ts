@@ -362,6 +362,7 @@ export class TelegramBotService {
 
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
 		const reasoningSummary = this.plugin.settings.reasoningSummary;
+		const contextTier = this.plugin.settings.contextTier;
 
 		return {
 			model: (provider && this.plugin.settings.providerModel) ? this.plugin.settings.providerModel : model,
@@ -372,6 +373,8 @@ export class TelegramBotService {
 			// SDK's narrow unions (see issue 7); validity is enforced in the toolbar.
 			...(reasoningEffort !== '' ? {reasoningEffort: reasoningEffort as import('../copilot').ReasoningEffort} : {}),
 			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as import('../copilot').ReasoningSummary} : {}),
+			// No per-model support signal; the SDK ignores contextTier for unsupported models.
+			...(contextTier !== 'default' ? {contextTier} : {}),
 			...(provider ? {provider} : {}),
 			...(Object.keys(mcpServers).length > 0 ? {mcpServers} : {}),
 			...(customAgents.length > 0 ? {customAgents} : {}),

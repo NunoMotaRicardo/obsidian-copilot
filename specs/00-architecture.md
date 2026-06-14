@@ -26,7 +26,7 @@ through `@github/copilot-sdk` over JSON-RPC.
 |---|---|---|---|
 | main | — | `src/main.ts` | Plugin lifecycle, service wiring, commands, ribbon |
 | copilot-service | [copilot-service.md](copilot-service.md) | `src/copilot.ts` | SDK client lifecycle, sessions, one-shot chat helpers |
-| runtime-manager | [runtime-manager.md](runtime-manager.md) | (planned, extract from `src/copilot.ts`) | CLI binary resolution, fallback download, version check |
+| runtime-manager | [runtime-manager.md](runtime-manager.md) | (planned → `src/runtimeManager.ts`, extract from `src/copilot.ts`; #13/#14/#15) | CLI binary resolution, fallback download, version check |
 | settings | [settings.md](settings.md) | `src/settings.ts` | Settings tab, provider/model config, persisted options |
 | config-loader | [config-loader.md](config-loader.md) | `src/configLoader.ts` | Vault `sidekick/` folder: agents, skills, tools, prompts, triggers |
 | chat-view | [chat-view.md](chat-view.md) | `src/sidekickView.ts`, `src/view/*` | Panel UI: toolbar, input, chat renderer, session sidebar, search, triggers tab |

@@ -5,8 +5,9 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
 ## Groups
 
 - **GitHub Copilot Client** — type (Local CLI / Remote CLI), CLI path, remote URL,
-  use-logged-in-user, GitHub token, **Test** button. Runtime-manager additions (issue 0002):
-  resolved-binary display, download/update fallback runtime.
+  use-logged-in-user, GitHub token, **Test** button. Runtime-manager additions:
+  resolved-binary source/path display (#13), **Download** / **Update** / **Remove** fallback
+  runtime buttons (#14).
 - **Models** — provider picker (GitHub built-in or BYOK: OpenAI, Azure/Foundry, Anthropic,
   Ollama, Foundry Local, other), base URL, model name, API key / bearer, wire API
   (completions/responses). BYOK flows into `SessionConfigBase.provider` and a custom
