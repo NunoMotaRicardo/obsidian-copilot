@@ -293,7 +293,7 @@ Some of the most important moving parts are not npm packages in `package.json`, 
 
 ### Copilot CLI
 
-Sidekick can launch a local Copilot CLI binary or connect to a remote CLI server. The SDK is the library layer; the CLI is the execution backend.
+Sidekick can launch a local Copilot CLI binary or connect to a remote CLI server. The SDK is the library layer; the CLI is the execution backend. How Sidekick finds that binary — and how it can download a plugin-managed fallback when none is present — is covered by the runtime manager: see [`wiki/decisions/2026-06-14-copilot-cli-runtime-manager.md`](decisions/2026-06-14-copilot-cli-runtime-manager.md) for the *why* and [`specs/runtime-manager.md`](../specs/runtime-manager.md) for the *how*.
 
 ### MCP servers
 
