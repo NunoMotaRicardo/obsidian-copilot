@@ -24,6 +24,8 @@ import type {
 	ElicitationFieldValue,
 } from '@github/copilot-sdk';
 import type {ProviderConfig, UserInputHandler, UserInputRequest, UserInputResponse, ReasoningEffort, ReasoningSummary, ContextTier} from '@github/copilot-sdk/dist/types';
+import {resolveDefaultCliPath, cleanEnv} from './runtimeManager';
+import type {CliPathSource, ResolvedCliPath} from './runtimeManager';
 
 /**
  * Connection state tracked by CopilotService.
@@ -34,94 +36,6 @@ export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'err
 
 // Available at runtime in the esbuild CJS bundle.
 const nodeRequire = typeof globalThis.require === 'function' ? globalThis.require : undefined;
-declare const __dirname: string;
-declare const process: {
-	platform: string;
-	arch: string;
-	env: Record<string, string | undefined>;
-	cwd(): string;
-};
-
-/**
- * Resolve the platform-specific Copilot native binary from node_modules.
- * Falls back to the JS entry point if the native binary is not found.
- */
-async function resolveDefaultCliPath(): Promise<string> {
-	// Lazy-load Node.js builtins so the module can be imported on mobile
-	const path = nodeRequire?.('node:path') as typeof import('node:path') ?? await import('node:path');
-	const fs = nodeRequire?.('node:fs/promises') as typeof import('node:fs/promises') ?? await import('node:fs/promises');
-
-	// On Windows, look for the native binary in the global npm prefix first
-	const searchRoots: string[] = [];
-	if (process.platform === 'win32') {
-		const appData = process.env['APPDATA'];
-		if (appData) {
-			searchRoots.push(path.join(appData, 'npm', 'node_modules'));
-		}
-	}
-	searchRoots.push(path.join(__dirname, 'node_modules'));
-
-	const nativePkg = `@github/copilot-${process.platform}-${process.arch}`;
-	const ext = process.platform === 'win32' ? '.exe' : '';
-
-	// Search paths: the native binary may be a direct dependency or nested
-	// under @github/copilot/node_modules (e.g. global npm installs on Windows).
-	const candidates: string[] = [];
-	for (const root of searchRoots) {
-		candidates.push(path.join(root, nativePkg, `copilot${ext}`));
-		candidates.push(path.join(root, '@github', 'copilot', 'node_modules', nativePkg, `copilot${ext}`));
-	}
-
-	// On Windows, also check the WinGet links directory
-	if (process.platform === 'win32') {
-		const localAppData = process.env['LOCALAPPDATA'];
-		if (localAppData) {
-			candidates.push(path.join(localAppData, 'Microsoft', 'WinGet', 'Links', 'copilot.exe'));
-		}
-	}
-
-	for (const nativeBin of candidates) {
-		try {
-			await fs.access(nativeBin);
-			return nativeBin;
-		} catch {
-			// not found in this root, continue
-		}
-	}
-
-	// Fallback to the JS CLI entry point
-	const fallback = path.join(__dirname, 'node_modules', '@github', 'copilot', 'index.js');
-	return fallback;
-}
-
-/**
- * Build a clean environment for the Copilot CLI subprocess.
- * Uses an allowlist of safe, well-known environment variables
- * to avoid leaking sensitive or Electron-specific values.
- */
-function cleanEnv(): Record<string, string> {
-	const ALLOWED_PREFIXES = [
-		'PATH', 'HOME', 'USERPROFILE', 'TMPDIR', 'TEMP', 'TMP',
-		'LANG', 'LC_', 'SHELL', 'TERM', 'COLORTERM',
-		'USER', 'USERNAME', 'LOGNAME', 'HOSTNAME',
-		'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PROGRAMFILES',
-		'APPDATA', 'LOCALAPPDATA', 'HOMEDRIVE', 'HOMEPATH',
-		'XDG_', 'DISPLAY', 'WAYLAND_DISPLAY',
-		'NODE_', 'NPM_', 'NVM_',
-		'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'ALL_PROXY',
-		'http_proxy', 'https_proxy', 'no_proxy', 'all_proxy',
-		'GITHUB_', 'GH_', 'COPILOT_',
-		'SSL_CERT_FILE', 'SSL_CERT_DIR', 'NODE_EXTRA_CA_CERTS',
-	];
-	const env: Record<string, string> = {};
-	for (const [key, value] of Object.entries(process.env)) {
-		if (value === undefined) continue;
-		if (ALLOWED_PREFIXES.some(prefix => key === prefix || key.startsWith(prefix))) {
-			env[key] = value;
-		}
-	}
-	return env;
-}
 
 /**
  * Manages the CopilotClient lifecycle and provides high-level methods
@@ -135,6 +49,8 @@ export class CopilotService {
 	private readonly githubToken: string | undefined;
 	private readonly useLoggedInUser: boolean | undefined;
 	private readonly onListModels: (() => Promise<ModelInfo[]> | ModelInfo[]) | undefined;
+	private readonly pluginBinDir: string | undefined;
+	private resolvedCliPath: ResolvedCliPath | null = null;
 
 	constructor(opts?: {
 		cliPath?: string;
@@ -142,12 +58,19 @@ export class CopilotService {
 		githubToken?: string;
 		useLoggedInUser?: boolean;
 		onListModels?: () => Promise<ModelInfo[]> | ModelInfo[];
+		/**
+		 * Absolute path to the plugin-managed `bin/` directory, supplied by the
+		 * caller (which has Obsidian vault access). Added to the resolution
+		 * chain so a future downloaded runtime can be found there.
+		 */
+		pluginBinDir?: string;
 	}) {
 		this.cliPath = opts?.cliPath;
 		this.cliUrl = opts?.cliUrl;
 		this.githubToken = opts?.githubToken;
 		this.useLoggedInUser = opts?.useLoggedInUser;
 		this.onListModels = opts?.onListModels;
+		this.pluginBinDir = opts?.pluginBinDir;
 	}
 
 	private state: ConnectionState = 'disconnected';
@@ -161,8 +84,16 @@ export class CopilotService {
 				...(this.onListModels ? {onListModels: this.onListModels} : {}),
 			});
 		}
-		// Local mode — spawn CLI process
-		const cliPath = this.cliPath || await resolveDefaultCliPath();
+		// Local mode — spawn CLI process. An explicit settings path
+		// short-circuits resolution; otherwise walk the runtime-manager chain.
+		let cliPath: string;
+		if (this.cliPath) {
+			cliPath = this.cliPath;
+			this.resolvedCliPath = {path: this.cliPath, source: 'settings'};
+		} else {
+			this.resolvedCliPath = await resolveDefaultCliPath({pluginBinDir: this.pluginBinDir});
+			cliPath = this.resolvedCliPath.path;
+		}
 		const os = nodeRequire?.('node:os') as typeof import('node:os') ?? await import('node:os');
 		return new CopilotClient({
 			connection: RuntimeConnection.forStdio({path: cliPath}),
@@ -224,6 +155,23 @@ export class CopilotService {
 	/** Current connection state. */
 	getState(): ConnectionState {
 		return this.client ? this.state : 'disconnected';
+	}
+
+	/**
+	 * Resolve the CLI binary path that would be used for a local connection,
+	 * together with which step of the resolution chain it came from. Returns
+	 * `undefined` in remote mode. Safe to call without connecting; if a client
+	 * has already resolved a path, that cached result is returned.
+	 */
+	async resolveCliPath(): Promise<ResolvedCliPath | undefined> {
+		if (this.cliUrl) return undefined;
+		if (this.resolvedCliPath) return this.resolvedCliPath;
+		if (this.cliPath) {
+			this.resolvedCliPath = {path: this.cliPath, source: 'settings'};
+			return this.resolvedCliPath;
+		}
+		this.resolvedCliPath = await resolveDefaultCliPath({pluginBinDir: this.pluginBinDir});
+		return this.resolvedCliPath;
 	}
 
 	// ── Authentication ──────────────────────────────────────────────
@@ -458,3 +406,5 @@ export type {
 	ElicitationSchemaField,
 	ElicitationFieldValue,
 };
+
+export type {CliPathSource, ResolvedCliPath};

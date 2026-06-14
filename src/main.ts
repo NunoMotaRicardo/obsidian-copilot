@@ -193,9 +193,24 @@ export default class SidekickPlugin extends Plugin {
 				cliPath: loc.length > 0 ? loc : undefined,
 				useLoggedInUser: s.useLoggedInUser,
 				githubToken: !s.useLoggedInUser && s.githubToken ? s.githubToken : undefined,
+				pluginBinDir: this.getPluginBinDir(),
 				...(onListModels ? {onListModels} : {}),
 			});
 		}
+	}
+
+	/**
+	 * Absolute path to the plugin-managed `bin/` directory
+	 * (`<vault>/.obsidian/plugins/sidekick/bin`), the home for a future
+	 * downloaded Copilot runtime. Resolved from the vault adapter `basePath`,
+	 * the vault `configDir` and this plugin's `manifest.id` so runtime-manager
+	 * stays testable rather than deriving paths from `__dirname`. Returns
+	 * `undefined` when no filesystem base path is available (e.g. mobile).
+	 */
+	getPluginBinDir(): string | undefined {
+		const basePath = (this.app.vault.adapter as unknown as {basePath?: string}).basePath;
+		if (!basePath) return undefined;
+		return [basePath, this.app.vault.configDir, 'plugins', this.manifest.id, 'bin'].join('/');
 	}
 
 	/**
