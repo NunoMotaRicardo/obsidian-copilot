@@ -27,8 +27,11 @@ Read `specs/00-architecture.md` first; one spec per module in `specs/`. Rules:
 
 ## Workflow
 
-- Work items are markdown files in `issues/` with YAML frontmatter
-  (`status: open | in-progress | done`). Follow `.claude/skills/issue-workflow/`.
+- Work items are GitHub issues on `NunoMotaRicardo/obsidian-copilot` (`gh issue
+  list/view/create/edit`); `in-progress` label marks active work. Run `/sidekick-build <#N |
+  "description">` for the full plan→code→review→PR cycle, or `/sidekick-lite "description"` for
+  a quick one-pass change (still build/lint/deploy-test, opens a draft PR). See
+  `wiki/decisions/2026-06-14-github-issue-workflow.md`.
 - Verify changes with `.claude/skills/deploy-test/`: build → copy artifacts to
   `D:\nmr-obsidian\obsidian-configs\.obsidian\plugins\sidekick\` → reload
   (`obsidian plugin:reload id=sidekick`). That vault is the user's real vault — deploy only
@@ -38,16 +41,17 @@ Read `specs/00-architecture.md` first; one spec per module in `specs/`. Rules:
 ## Agents
 
 `.claude/agents/sidekick-*.md` are Claude Code dev-workflow agents for *building* this
-plugin, in a pipeline:
+plugin, orchestrated by `/sidekick-build` and `/sidekick-lite`:
 
 - **sidekick-analyst** — synthesizes `grill-me` sessions and librarian work into `wiki/`
   (decision records, guides). Hands functional intent to the planner.
-- **sidekick-technical-planner** — turns `wiki/` intent into `specs/<module>.md` updates and
-  `issues/NNNN-*.md` vertical slices.
-- **sidekick-coder** — implements one issue at a time in small, verified increments (build +
-  lint + deploy-test).
+- **sidekick-technical-planner** — entry point of `/sidekick-build`: audits `specs/`/`src/`
+  against the request, creates or scopes a GitHub issue, and splits oversized work into
+  sub-issues. Owns `specs/<module>.md` updates.
+- **sidekick-coder** — implements one issue (full mode) or one description (lite mode) at a
+  time in small, verified increments (build + lint + deploy-test), on a `claude/<slug>` branch.
 - **sidekick-reviewer** — diff-only quality + security gate (`/code-review` +
-  `/security-review`), pass/fail verdict and PR description draft.
+  `/security-review`), pass/fail verdict and PR description draft; full mode only.
 
 Live elicitation (`grill-me`) runs in the main thread; spawn sidekick-analyst afterwards to
 write it up.

@@ -34,7 +34,7 @@ wiki/
   images/       # screenshots referenced from guides
 ```
 
-You **never** write to `specs/`, `issues/`, or `src/` — those belong to the
+You **never** write to `specs/`, GitHub issues, or `src/` — those belong to the
 sidekick-technical-planner and sidekick-coder.
 
 ## Two modes
@@ -66,8 +66,8 @@ What's explicitly out of scope for now (mirror a PRD's "Non-goals" if useful).
 Unresolved items.
 
 ## Hand-off Notes for the Technical Planner
-The functional intent the planner must turn into specs/ updates and issues/ (no technical
-design here — module names, file paths, or API shapes are the planner's job).
+The functional intent the planner must turn into specs/ updates and GitHub issues (no
+technical design here — module names, file paths, or API shapes are the planner's job).
 ```
 
 If the decision is substantial enough to need its own PRD-style writeup (like
