@@ -43,9 +43,9 @@ vault scope, folder tree.
     effort, so the model icon stays interactive); the SDK silently ignores `contextTier` for
     models that don't support the tier. `contextTier` rides along on the same mid-session
     `session.setModel()` call (`{reasoningEffort, reasoningSummary, contextTier}`) so toggling
-    it doesn't reset reasoning, is omitted from session config when `'default'` (matching the
-    reasoning omit-when-empty pattern), and flows into new/resumed sessions and the Telegram
-    bot through the shared `buildSessionConfig`. `ContextTier` is imported from `../copilot`
+    it doesn't reset reasoning, is omitted from session config when 'default' (matching the
+    reasoning omit-when-empty pattern), and flows into new/resumed sessions via buildSessionConfig
+    and into the Telegram bot via TelegramBotService.buildBotSessionConfig. `ContextTier` is imported from `../copilot`
     (CopilotService's SDK re-export). Orthogonal to infinite sessions (issue #5): context tier
     sets the window size, infinite sessions controls auto-compaction — they compose.
 - Session restore: resume by id with the full current session config, re-select agent via
