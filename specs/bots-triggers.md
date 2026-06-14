@@ -16,5 +16,5 @@
 - One Copilot session per chat/topic; `/new` resets, `/help` explains.
 - Attachments (photo/document/audio/video) are downloaded and passed as SDK attachments.
 - Uses the default agent from settings, all configured MCP tools/skills, and the persisted
-  `reasoningEffort` (same rules as chat-view).
+  `reasoningEffort`/`reasoningSummary` (same rules as chat-view).
 - Runs only while Obsidian is open and connected.

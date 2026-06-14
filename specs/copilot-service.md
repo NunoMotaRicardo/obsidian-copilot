@@ -34,7 +34,7 @@ Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin
 |---|---|
 | `model` | toolbar / agent frontmatter / settings |
 | `reasoningEffort` | settings + toolbar brain menu, only when `model.capabilities.supports.reasoningEffort` |
-| `reasoningSummary` | planned — issue 0003 |
+| `reasoningSummary` | settings + toolbar brain menu (issue 0003), same gating as `reasoningEffort` |
 | `contextTier` | planned — issue 0004 |
 | `infiniteSessions` | planned — issue 0005 |
 | `systemMessage` | agent body / built-in prompts |

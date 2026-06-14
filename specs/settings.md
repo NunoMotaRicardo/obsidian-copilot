@@ -12,10 +12,12 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
   (completions/responses). BYOK flows into `SessionConfigBase.provider` and a custom
   `onListModels` handler in `main.ts`.
 - **Sidekick** — inline-operations model, sidekick folder name, tools approval (allow/ask),
-  ghost-text toggle, reasoning effort (`string`, `''` = model default; validated against the
-  model's `supportedReasoningEfforts`), reasoning summary (`'' | none | concise | detailed`),
-  search mode/agent. Both reasoning controls live in the chat toolbar's brain menu, not a
-  settings-tab field. Planned: long-context default (0004), infinite sessions (0005).
+  ghost-text toggle, inline Sidekick icon toggle (`inlineIconEnabled`, default off — gutter
+  icon next to the active line, issue 0008), reasoning effort (`string`, `''` = model default;
+  validated against the model's `supportedReasoningEfforts`), reasoning summary
+  (`'' | none | concise | detailed`), search mode/agent. Both reasoning controls live in the
+  chat toolbar's brain menu, not a settings-tab field. Planned: long-context default (0004),
+  infinite sessions (0005).
 - **Bots** — Telegram bot config (token stored via `localStorage`, not `data.json`).
 - **MCP input variables** — stored values for `${input:...}` placeholders; passwords kept in
   localStorage only.
