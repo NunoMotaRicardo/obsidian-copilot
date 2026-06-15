@@ -58,9 +58,11 @@ export async function fetchProviderModels(params: FetchProviderModelsParams): Pr
 	const {preset, apiKey, bearerToken} = params;
 	const baseUrl = params.baseUrl.replace(/\/$/, '');
 	const headers = buildAuthHeaders(preset, apiKey, bearerToken);
+
+	const rootUrl = preset === 'ollama' ? baseUrl.replace(/\/v1$/, '') : baseUrl;
 	const url = preset === 'ollama'
-		? `${baseUrl}/api/tags`
-		: `${baseUrl}/v1/models`;
+		? `${rootUrl}/api/tags`
+		: (rootUrl.endsWith('/v1') ? `${rootUrl}/models` : `${rootUrl}/v1/models`);
 
 	try {
 		const resp = await requestUrl({url, headers});
