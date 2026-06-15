@@ -293,10 +293,8 @@ export class SidekickSettingTab extends PluginSettingTab {
 		// Test, reset to empty whenever the Settings tab is (re)opened.
 		const MODEL_DATALIST_ID = 'sidekick-provider-model-datalist';
 		let modelDatalistEl: HTMLDataListElement | null = null;
-		let modelDatalistOptions: ModelInfo[] = [];
 
 		const populateModelDatalist = (models: ModelInfo[]) => {
-			modelDatalistOptions = models;
 			if (!modelDatalistEl) return;
 			modelDatalistEl.empty();
 			for (const model of models) {
