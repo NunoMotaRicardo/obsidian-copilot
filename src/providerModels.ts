@@ -72,28 +72,24 @@ export async function fetchProviderModels(params: FetchProviderModelsParams): Pr
 		const json = resp.json as Record<string, unknown>;
 
 		if (preset === 'ollama') {
-			// Ollama format: { models: [{ name, ... }] }
-			const models = (json.models ?? []) as Array<{name: string; modified_at?: string}>;
-			return {
-				ok: true,
-				models: models.map(m => ({
-					id: m.name,
-					name: m.name,
-					capabilities: placeholderCapabilities,
-				})) as ModelInfo[],
-			};
+			const rawModels = Array.isArray(json.models) ? json.models : [];
+			const models = rawModels
+				.map(m => (typeof (m as any)?.name === 'string' ? (m as any).name : ''))
+				.filter((name): name is string => name.length > 0)
+				.map(name => ({id: name, name, capabilities: placeholderCapabilities})) as ModelInfo[];
+			return {ok: true, models};
 		}
 
-		// OpenAI-compatible format: { data: [{ id, name?, ... }] }
-		const data = (json.data ?? []) as Array<{id: string; name?: string}>;
-		return {
-			ok: true,
-			models: data.map(m => ({
-				id: m.id,
-				name: m.name ?? m.id,
-				capabilities: placeholderCapabilities,
-			})) as ModelInfo[],
-		};
+		const rawData = Array.isArray(json.data) ? json.data : [];
+		const models = rawData
+			.map(m => {
+				const id = (m as any)?.id;
+				const name = (m as any)?.name;
+				if (typeof id !== 'string' || id.length === 0) return null;
+				return {id, name: (typeof name === 'string' && name.length > 0) ? name : id, capabilities: placeholderCapabilities};
+			})
+			.filter((m): m is NonNullable<typeof m> => m !== null) as ModelInfo[];
+		return {ok: true, models};
 	} catch (e) {
 		return {ok: false, error: String(e)};
 	}
