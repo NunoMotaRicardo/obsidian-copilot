@@ -542,8 +542,8 @@ export class SidekickSettingTab extends PluginSettingTab {
 							});
 						text.inputEl.setAttribute('list', MODEL_DATALIST_ID);
 						modelDatalistEl = (text.inputEl.parentElement ?? providerFieldsEl).createEl('datalist', {attr: {id: MODEL_DATALIST_ID}});
-						populateModelDatalist(modelDatalistOptions);
-					});
+						// Avoid stale suggestions when switching presets; repopulate only after a successful Test.
+						populateModelDatalist([]);
 
 				new Setting(providerFieldsEl)
 					.setName('API key')
