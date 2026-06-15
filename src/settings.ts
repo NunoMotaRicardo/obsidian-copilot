@@ -1,8 +1,9 @@
 import {App, Modal, Notice, PluginSettingTab, Setting, normalizePath} from "obsidian";
 import SidekickPlugin from "./main";
-import type {ModelInfo, ProviderConfig, ContextTier} from "./copilot";
+import type {ModelInfo, ContextTier} from "./copilot";
 import type {McpInputVariable} from "./types";
 import {loadMcpInputs, loadAgents} from "./configLoader";
+import {fetchProviderModels} from "./providerModels";
 
 const DEFAULT_COPILOT_LOCATION = '';
 
@@ -288,6 +289,22 @@ export class SidekickSettingTab extends PluginSettingTab {
 		let refreshModels: () => Promise<void> = async () => {};
 		let inlineModelSelect: HTMLSelectElement | null = null;
 
+		// Model name datalist: in-memory only, populated by a successful BYOK
+		// Test, reset to empty whenever the Settings tab is (re)opened.
+		const MODEL_DATALIST_ID = 'sidekick-provider-model-datalist';
+		let modelDatalistEl: HTMLDataListElement | null = null;
+
+		const populateModelDatalist = (models: ModelInfo[]) => {
+			if (!modelDatalistEl) return;
+			modelDatalistEl.empty();
+			for (const model of models) {
+				const option = modelDatalistEl.createEl('option', {value: model.id});
+				if (model.name && model.name !== model.id) {
+					option.label = model.name;
+				}
+			}
+		};
+
 		const populateInlineDropdown = (models: ModelInfo[]) => {
 			if (inlineModelSelect) {
 				const prev = this.plugin.settings.inlineModel;
@@ -512,15 +529,20 @@ export class SidekickSettingTab extends PluginSettingTab {
 
 				new Setting(providerFieldsEl)
 					.setName('Model name')
-					.setDesc('Ex: gpt-4o, claude-sonnet-4, etc.')
-					.addText(text => text
-						.setPlaceholder('')
-						.setValue(this.plugin.settings.providerModel)
-						.onChange(async (value) => {
-							this.plugin.settings.providerModel = value.trim();
-							await this.plugin.saveSettings();
-							await refreshModels();
-						}));
+					.setDesc('Ex: gpt-4o, claude-sonnet-4, etc. (test to populate suggestions)')
+					.addText(text => {
+						text.setPlaceholder('')
+							.setValue(this.plugin.settings.providerModel)
+							.onChange(async (value) => {
+								this.plugin.settings.providerModel = value.trim();
+								await this.plugin.saveSettings();
+								await refreshModels();
+							});
+						text.inputEl.setAttribute('list', MODEL_DATALIST_ID);
+						modelDatalistEl = (text.inputEl.parentElement ?? providerFieldsEl).createEl('datalist', {attr: {id: MODEL_DATALIST_ID}});
+						// Avoid stale suggestions when switching presets; repopulate only after a successful Test.
+						populateModelDatalist([]);
+					});
 
 				new Setting(providerFieldsEl)
 					.setName('API key')
@@ -595,33 +617,43 @@ export class SidekickSettingTab extends PluginSettingTab {
 					button.setDisabled(true);
 					button.setButtonText('Testing…');
 					try {
-						if (!this.plugin.copilot) {
-							throw new Error('Copilot service is not available');
+						const preset = this.plugin.settings.providerPreset;
+						if (preset === 'github') {
+							if (!this.plugin.copilot) {
+								throw new Error('Copilot service is not available');
+							}
+							const testSession = await this.plugin.copilot.createSession({
+								onPermissionRequest: () => ({allow: false, kind: 'denied-interactively-by-user' as const}),
+								...(this.plugin.settings.providerModel ? {model: this.plugin.settings.providerModel} : {}),
+							});
+							await testSession.disconnect();
+							new Notice('Provider session created successfully.');
+							await refreshModels();
+							return;
 						}
-						const testSession = await this.plugin.copilot.createSession({
-							onPermissionRequest: () => ({allow: false, kind: 'denied-interactively-by-user' as const}),
-							...(this.plugin.settings.providerModel ? {model: this.plugin.settings.providerModel} : {}),
-							...(this.plugin.settings.providerPreset !== 'github' && this.plugin.settings.providerBaseUrl
-								? {provider: (() => {
-									const typeMap: Record<string, 'openai' | 'azure' | 'anthropic'> = {
-										openai: 'openai', azure: 'azure', anthropic: 'anthropic',
-										ollama: 'openai', 'foundry-local': 'openai', 'other-openai': 'openai',
-									};
-									const cfg: ProviderConfig = {
-										type: typeMap[this.plugin.settings.providerPreset] ?? 'openai',
-										baseUrl: this.plugin.settings.providerBaseUrl,
-										wireApi: this.plugin.settings.providerWireApi,
-										...(this.plugin.settings.providerApiKey ? {apiKey: this.plugin.settings.providerApiKey} : {}),
-										...(this.plugin.settings.providerBearerToken ? {bearerToken: this.plugin.settings.providerBearerToken} : {}),
-									};
-									return cfg;
-								})()}
-								: {}),
+
+						if (!this.plugin.settings.providerBaseUrl) {
+							throw new Error('Base URL is required');
+						}
+						const result = await fetchProviderModels({
+							preset,
+							baseUrl: this.plugin.settings.providerBaseUrl,
+							apiKey: this.plugin.settings.providerApiKey,
+							bearerToken: this.plugin.settings.providerBearerToken,
 						});
-						await testSession.disconnect();
-						new Notice('Provider session created successfully.');
+						if (!result.ok) {
+							populateModelDatalist([]);
+							new Notice(`Test failed: ${result.error}`);
+						} else if (result.models.length === 0) {
+							populateModelDatalist([]);
+							new Notice('Connected, but the provider reported no available models.');
+						} else {
+							populateModelDatalist(result.models);
+							new Notice(`Connected — found ${result.models.length} model(s).`);
+						}
 						await refreshModels();
 					} catch (e) {
+						populateModelDatalist([]);
 						new Notice(`Test failed: ${String(e)}`);
 					} finally {
 						button.setDisabled(false);

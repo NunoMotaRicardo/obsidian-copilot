@@ -1,6 +1,7 @@
-import {MarkdownView, Notice, Plugin, requestUrl} from 'obsidian';
+import {MarkdownView, Notice, Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, SidekickSettings, SidekickSettingTab, SECURE_FIELDS, loadSecureField, saveSecureField} from "./settings";
 import {CopilotService} from "./copilot";
+import {fetchProviderModels} from "./providerModels";
 import {SidekickView, SIDEKICK_VIEW_TYPE} from "./sidekickView";
 import {registerEditorMenu, registerFileMenu, openSidekickView, showEditNoteModal, showStructureModal, runSelectionAction} from './editor/editorMenu';
 import {buildGhostTextExtension, triggerComplete} from './editor/ghostText';
@@ -221,47 +222,16 @@ export default class SidekickPlugin extends Plugin {
 		const s = this.settings;
 		if (s.providerPreset === 'github' || !s.providerBaseUrl) return undefined;
 
-		const baseUrl = s.providerBaseUrl.replace(/\/$/, '');
-		const apiKey = s.providerApiKey;
-		const bearerToken = s.providerBearerToken;
-		const preset = s.providerPreset;
+		const params = {
+			preset: s.providerPreset,
+			baseUrl: s.providerBaseUrl,
+			apiKey: s.providerApiKey,
+			bearerToken: s.providerBearerToken,
+		};
 
 		return async (): Promise<import('./copilot').ModelInfo[]> => {
-			try {
-				const headers: Record<string, string> = {'Content-Type': 'application/json'};
-				if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-				else if (bearerToken) headers['Authorization'] = `Bearer ${bearerToken}`;
-
-				// Ollama uses /api/tags, OpenAI-compatible use /v1/models
-				const url = preset === 'ollama'
-					? `${baseUrl}/api/tags`
-					: `${baseUrl}/v1/models`;
-
-				const resp = await requestUrl({url, headers});
-				if (resp.status < 200 || resp.status >= 300) return [];
-				const json = resp.json as Record<string, unknown>;
-
-				if (preset === 'ollama') {
-					// Ollama format: { models: [{ name, ... }] }
-					const models = (json.models ?? []) as Array<{name: string; modified_at?: string}>;
-					return models.map(m => ({
-						id: m.name,
-						name: m.name,
-						version: m.name,
-						capabilities: {supports: {vision: false, reasoningEffort: false}, limits: {max_context_window_tokens: 0}},
-					})) as import('./copilot').ModelInfo[];
-				}
-				// OpenAI-compatible format: { data: [{ id, ... }] }
-				const data = (json.data ?? []) as Array<{id: string; name?: string}>;
-				return data.map(m => ({
-					id: m.id,
-					name: m.name ?? m.id,
-					version: m.id,
-					capabilities: {supports: {vision: false, reasoningEffort: false}, limits: {max_context_window_tokens: 0}},
-				})) as import('./copilot').ModelInfo[];
-			} catch {
-				return [];
-			}
+			const result = await fetchProviderModels(params);
+			return result.ok ? result.models : [];
 		};
 	}
 
