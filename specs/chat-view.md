@@ -48,13 +48,24 @@ vault scope, folder tree.
     and into the Telegram bot via TelegramBotService.buildBotSessionConfig. `ContextTier` is imported from `../copilot`
     (CopilotService's SDK re-export). Orthogonal to infinite sessions (issue #5): context tier
     sets the window size, infinite sessions controls auto-compaction — they compose.
+  - An **Infinite sessions** toggle in the same model-icon menu controls the SDK's
+    auto-compaction behavior (`settings.infiniteSessionsEnabled`, default `true` — the SDK
+    default). When enabled, the SDK compacts the conversation at ~80% context utilization
+    (background) and blocks at ~95% (buffer exhaustion). When disabled, sessions hit the
+    context limit and stop. The toggle follows the same patterns as Long context: always shown,
+    sets a persisted setting, marks config dirty, omitted from session config when `true`
+    (matching the SDK default). `infiniteSessions: { enabled: false }` is passed only when
+    the user explicitly disables it. Planned: issue #5.
+- **Compaction events in debug view** (issue #5): when the debug toggle is on,
+  `session.compaction_start` and `session.compaction_complete` events render inline debug
+  blocks in the chat (same visibility gating as tool calls via `.sidekick-hide-debug`).
+  `compaction_start` shows the pre-compaction token breakdown (conversation / system / tool
+  definition tokens). `compaction_complete` shows success/failure, tokens removed, messages
+  removed, and the summary content. These are handled in `handleSessionEvent()` alongside
+  existing event types.
 - Session restore: resume by id with the full current session config, re-select agent via
   `session.rpc.agent.select`, replay history from `session.getEvents()`
   (`user.message`, `assistant.reasoning`, `assistant.message`).
 - The active note is attached as context; working directory follows the active note's folder
   unless overridden in the toolbar.
 - Sessions are auto-named `<Agent>: <first message>`; trigger/search sessions are tagged.
-
-## Planned changes
-
-- Issue 0005: infinite-sessions (auto-compaction) setting + compaction visibility in debug view.
