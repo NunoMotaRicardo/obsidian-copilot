@@ -214,10 +214,15 @@ export function resolveNoteImageEmbeds(
 			const resolved = app.metadataCache.getFirstLinkpathDest(target, sourcePath);
 			if (resolved instanceof TFile) file = resolved;
 		} else {
-			// Markdown link: decode URI and resolve from vault
-			const decoded = decodeURIComponent(target);
-			const abstract = app.vault.getAbstractFileByPath(decoded);
-			if (abstract instanceof TFile) file = abstract;
+			// Markdown link: decode URI (when URL-encoded) and resolve relative to the source note
+			let decoded = target;
+			try {
+				decoded = decodeURIComponent(target);
+			} catch {
+				// ignore decode errors and fall back to the raw target
+			}
+			const resolved = app.metadataCache.getFirstLinkpathDest(decoded, sourcePath);
+			if (resolved instanceof TFile) file = resolved;
 		}
 
 		if (file && !seenPaths.has(file.path)) {
