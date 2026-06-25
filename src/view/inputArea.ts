@@ -32,6 +32,20 @@ declare module '../sidekickView' {
 	}
 }
 
+/** Image file extensions recognized for icon display and drag-drop handling. */
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
+
+/** Check whether an attachment represents an image (for icon rendering). */
+function isImageAttachment(att: {type: string; name?: string; mimeType?: string}): boolean {
+	if (att.type === 'image') return true;
+	if (att.type === 'blob') return !!att.mimeType?.startsWith('image/');
+	if (att.type === 'file' && att.name) {
+		const ext = att.name.split('.').pop()?.toLowerCase() ?? '';
+		return IMAGE_EXTS.has(ext);
+	}
+	return false;
+}
+
 export function installInputArea(ViewClass: {prototype: unknown}): void {
 	const proto = ViewClass.prototype as SidekickView;
 
@@ -301,8 +315,6 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 		}
 
 		// ── External OS file drag ────────────────────────────────
-		const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
-
 		// Resolve absolute OS path using Electron webUtils, same as handleAttachFile
 		let getPath: (f: File) => string;
 		try {
@@ -351,7 +363,7 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 			const att = this.attachments[i];
 			if (!att) continue;
 			const tag = this.attachmentsBar.createDiv({cls: 'sidekick-attachment-tag'});
-			const typeIcon = att.type === 'image' ? 'image' : att.type === 'clipboard' ? 'clipboard' : att.type === 'selection' ? 'text-cursor-input' : 'file-text';
+			const typeIcon = isImageAttachment(att) ? 'image' : att.type === 'clipboard' ? 'clipboard' : att.type === 'selection' ? 'text-cursor-input' : 'file-text';
 			const ic = tag.createSpan({cls: 'sidekick-attachment-icon'});
 			setIcon(ic, typeIcon);
 			tag.createSpan({text: att.name, cls: 'sidekick-attachment-name'});
