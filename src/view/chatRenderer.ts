@@ -8,8 +8,7 @@ import {
 	setIcon,
 } from 'obsidian';
 import type {SidekickView} from '../sidekickView';
-import {isImageAttachment} from '../types';
-import type {ChatMessage, ChatAttachment} from '../types';
+import {isImageAttachment, type ChatMessage, type ChatAttachment} from '../types';
 import {renderMarkdownSafe} from './utils';
 
 const MAX_DEBUG_DISPLAY_LEN = 5000;
