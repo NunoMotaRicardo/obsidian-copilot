@@ -2,11 +2,11 @@
  * runtime-manager — resolves the Copilot CLI binary and builds a clean
  * subprocess environment.
  *
- * Extracted from `src/copilot.ts` so the resolution chain can grow (a
- * plugin-managed downloaded runtime, version checks) without entangling the
- * SDK consumer. This module touches only `node:*` builtins and values passed
- * in by the caller — it must NOT import `@github/copilot-sdk`. `CopilotService`
- * stays the sole SDK consumer and calls into here for path resolution.
+ * Extracted from `src/copilot.ts` so the resolution chain stays separate from
+ * the SDK consumer. This module touches only `node:*` builtins and values
+ * passed in by the caller — it must NOT import `@github/copilot-sdk`.
+ * `CopilotService` stays the sole SDK consumer and calls into here for path
+ * resolution.
  *
  * Desktop-only: Node builtins are lazy-loaded so the module stays import-safe
  * on mobile.
@@ -27,7 +27,6 @@ export type CliPathSource =
 	| 'settings'
 	| 'global-npm'
 	| 'winget'
-	| 'plugin-managed'
 	| 'js-fallback';
 
 /** A resolved CLI binary path together with the chain step it came from. */
@@ -37,27 +36,11 @@ export interface ResolvedCliPath {
 }
 
 /**
- * Inputs that the caller (which has access to Obsidian APIs) must supply so
- * the resolution stays testable and correct under a real vault layout.
- */
-export interface RuntimeManagerContext {
-	/**
-	 * Absolute path to the plugin-managed `bin/` directory, e.g.
-	 * `<vault>/.obsidian/plugins/sidekick/bin`. Resolved by the caller from the
-	 * vault adapter `basePath`, the vault `configDir` and the plugin
-	 * `manifest.id` — not derived from `__dirname`. Optional so the resolver can
-	 * still run when no vault context is available.
-	 */
-	pluginBinDir?: string;
-}
-
-/**
  * Resolve the platform-specific Copilot native binary, in priority order:
  *   1. global npm prefix (`%APPDATA%\npm\node_modules`) + the vestigial
  *      `__dirname/node_modules` search root,
  *   2. WinGet Links (Windows only),
- *   3. the plugin-managed `bin/` directory (a future downloaded runtime),
- *   4. the JS CLI entry point fallback.
+ *   3. the JS CLI entry point fallback.
  *
  * The explicit settings path (`copilotLocation`) is handled by the caller and
  * is not part of this function — when set it short-circuits resolution
@@ -65,9 +48,7 @@ export interface RuntimeManagerContext {
  *
  * Returns the resolved path and which chain step produced it.
  */
-export async function resolveDefaultCliPath(
-	ctx: RuntimeManagerContext = {},
-): Promise<ResolvedCliPath> {
+export async function resolveDefaultCliPath(): Promise<ResolvedCliPath> {
 	// Lazy-load Node.js builtins so the module can be imported on mobile
 	const path = nodeRequire?.('node:path') as typeof import('node:path') ?? await import('node:path');
 	const fs = nodeRequire?.('node:fs/promises') as typeof import('node:fs/promises') ?? await import('node:fs/promises');
@@ -103,11 +84,6 @@ export async function resolveDefaultCliPath(
 		}
 	}
 
-	// 3. Plugin-managed fallback binary (home for a future downloaded runtime).
-	if (ctx.pluginBinDir) {
-		candidates.push({path: path.join(ctx.pluginBinDir, `copilot${ext}`), source: 'plugin-managed'});
-	}
-
 	for (const candidate of candidates) {
 		try {
 			await fs.access(candidate.path);
@@ -117,7 +93,7 @@ export async function resolveDefaultCliPath(
 		}
 	}
 
-	// 4. Fallback to the JS CLI entry point.
+	// 3. Fallback to the JS CLI entry point.
 	const fallback = path.join(__dirname, 'node_modules', '@github', 'copilot', 'index.js');
 	return {path: fallback, source: 'js-fallback'};
 }
