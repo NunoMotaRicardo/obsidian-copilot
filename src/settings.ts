@@ -71,6 +71,12 @@ export interface SidekickSettings {
 	 * in the SDK, so the toggle is always shown.
 	 */
 	contextTier: ContextTier;
+	/**
+	 * Whether infinite sessions (automatic context compaction) are enabled.
+	 * true (default) = SDK default behavior (omit from session config).
+	 * false = explicitly disable (`infiniteSessions: { enabled: false }`).
+	 */
+	infiniteSessionsEnabled: boolean;
 	/** Agent name used for semantic search. */
 	searchAgent: string;
 	/** Search mode: 'basic' reuses session with minimal config, 'advanced' allows full agent/model/skills/tools. */
@@ -133,6 +139,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	reasoningEffort: '',
 	reasoningSummary: '',
 	contextTier: 'default',
+	infiniteSessionsEnabled: true,
 	searchAgent: '',
 	searchMode: 'basic',
 	telegramBotId: '',
