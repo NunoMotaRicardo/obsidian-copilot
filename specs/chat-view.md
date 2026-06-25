@@ -67,10 +67,15 @@ vault scope, folder tree.
   `session.rpc.agent.select`, replay history from `session.getEvents()`
   (`user.message`, `assistant.reasoning`, `assistant.message`).
 - The active note is attached as context; working directory follows the active note's folder
-  unless overridden in the toolbar. Planned: auto-resolve and attach note-embedded images
-  (`![[image.png]]`, `![](path.png)`) as SDK file attachments up to a configurable cap (default
-  3), gated by `settings.autoIncludeNoteImages` and `settings.maxNoteImages`, respecting SDK
-  `model.capabilities.limits.vision.max_prompt_images` when reported (issue #27).
+  unless overridden in the toolbar. When `settings.autoIncludeNoteImages` is enabled (default),
+  `handleSend()` reads the active note content, scans for image embeds (`![[image.png]]` and
+  `![alt](path.png)` syntaxes), resolves them to vault files via `resolveNoteImageEmbeds()`
+  (`sessionConfig.ts`), deduplicates against manual attachments, and auto-attaches the first N
+  images (capped at `min(settings.maxNoteImages, model.capabilities.limits.vision.max_prompt_images)`)
+  as `{type: 'image'}` `ChatAttachment` items. Images beyond the cap are silently skipped.
+  The shared `IMAGE_EXTS` constant (`types.ts`) defines the supported image extensions
+  (`png, jpg, jpeg, gif, webp, bmp, svg`). Non-vision models are unaffected (the SDK/model
+  handles or ignores image attachments gracefully).
 - Image attachments: the input area supports drag/drop (OS and vault files), clipboard paste
   (screenshot to blob), and the paperclip attachment button. `buildSdkAttachments()` in
   `sessionConfig.ts` converts `ChatAttachment` items to SDK format using a hybrid strategy:

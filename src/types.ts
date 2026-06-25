@@ -87,7 +87,7 @@ export interface SelectionInfo {
 	endChar: number;
 }
 
-/** Image file extensions recognized for icon display and drag-drop handling. */
+/** Image file extensions recognized for icon display, drag-drop handling, and attachment. */
 export const IMAGE_EXTS: ReadonlySet<string> = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
 
 /** Check whether an attachment represents an image (for icon rendering). */
