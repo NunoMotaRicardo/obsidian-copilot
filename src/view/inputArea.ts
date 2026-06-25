@@ -1,5 +1,6 @@
 import {MarkdownView, Menu, Notice, TFile, TFolder, setIcon} from 'obsidian';
 import type {SidekickView} from '../sidekickView';
+import {IMAGE_EXTS, isImageAttachment} from '../types';
 import type {PromptConfig, SelectionInfo} from '../types';
 import {VaultScopeModal} from '../modals/vaultScopeModal';
 
@@ -30,20 +31,6 @@ declare module '../sidekickView' {
 		setPromptText(text: string): void;
 		addSelectionAttachment(text: string, info: SelectionInfo): void;
 	}
-}
-
-/** Image file extensions recognized for icon display and drag-drop handling. */
-const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
-
-/** Check whether an attachment represents an image (for icon rendering). */
-function isImageAttachment(att: {type: string; name?: string; mimeType?: string}): boolean {
-	if (att.type === 'image') return true;
-	if (att.type === 'blob') return !!att.mimeType?.startsWith('image/');
-	if (att.type === 'file' && att.name) {
-		const ext = att.name.split('.').pop()?.toLowerCase() ?? '';
-		return IMAGE_EXTS.has(ext);
-	}
-	return false;
 }
 
 export function installInputArea(ViewClass: {prototype: unknown}): void {

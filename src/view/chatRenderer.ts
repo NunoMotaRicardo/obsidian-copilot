@@ -8,6 +8,7 @@ import {
 	setIcon,
 } from 'obsidian';
 import type {SidekickView} from '../sidekickView';
+import {isImageAttachment} from '../types';
 import type {ChatMessage, ChatAttachment} from '../types';
 import {renderMarkdownSafe} from './utils';
 
@@ -97,7 +98,7 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 			for (const att of msg.attachments) {
 				const chip = attRow.createSpan({cls: 'sidekick-msg-att-chip sidekick-att-clickable'});
 				const ic = chip.createSpan();
-				const icon = att.type === 'directory' ? 'folder' : att.type === 'image' ? 'image' : att.type === 'clipboard' ? 'clipboard' : att.type === 'selection' ? 'text-cursor-input' : 'file-text';
+				const icon = att.type === 'directory' ? 'folder' : isImageAttachment(att) ? 'image' : att.type === 'clipboard' ? 'clipboard' : att.type === 'selection' ? 'text-cursor-input' : 'file-text';
 				setIcon(ic, icon);
 				chip.appendText(` ${att.name}`);
 
