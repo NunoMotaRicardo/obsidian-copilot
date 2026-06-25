@@ -31,7 +31,7 @@ Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin
 ## BYOK provider injection (#25)
 
 When a non-GitHub provider preset is active, `CopilotService` receives `provider` (a
-`ProviderConfig`), `providerPreset`, and optionally `streaming` at construction time (set in
+`ProviderConfig`) and optionally `streaming` at construction time (set in
 `main.ts` from settings via `buildProviderConfig()`). Both `chat()` and `inlineChat()` auto-
 inject `provider` and `streaming` into their `createSession()` calls so that **all** inline/
 editor operations (rewrite, edit, structure, image extraction, ghost text, etc.) route through
@@ -100,7 +100,7 @@ tracked in issue #30.
 
 ## Public API surface
 
-The `provider`, `providerPreset`, and `providerStreaming` fields are private — consumed only
+The `provider` and `providerStreaming` fields are private — consumed only
 internally by `chat()` and `inlineChat()`. No public getters are exposed for them; callers
 that need provider config (e.g. `buildSessionConfig`) receive it directly from `main.ts`.
 
