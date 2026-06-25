@@ -19,9 +19,10 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
   ghost-text toggle, inline Sidekick icon toggle (`inlineIconEnabled`, default off — gutter
   icon next to the active line, issue 0008), reasoning effort (`string`, `''` = model default;
   validated against the model's `supportedReasoningEfforts`), reasoning summary
-  (`'' | none | concise | detailed`), search mode/agent. Both reasoning controls live in the
-  chat toolbar's brain menu, not a settings-tab field. Planned: long-context default (0004),
-  infinite sessions (0005).
+  (`'' | none | concise | detailed`), infinite sessions toggle
+  (`infiniteSessionsEnabled: boolean`, default `true` — matches SDK default; issue #5),
+  search mode/agent. Reasoning and context controls live in the chat toolbar's model-icon
+  menu, not a settings-tab field. Planned: long-context default (0004).
 - **Bots** — Telegram bot config (token stored via `localStorage`, not `data.json`).
 - **MCP input variables** — stored values for `${input:...}` placeholders; passwords kept in
   localStorage only.

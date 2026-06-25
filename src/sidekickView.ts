@@ -771,6 +771,20 @@ export class SidekickView extends ItemView {
 			case 'skill.invoked':
 				this.turnSkillsUsed.push(data.name as string);
 				break;
+			case 'session.compaction_start':
+				this.addCompactionStartBlock(data as {conversationTokens?: number; systemTokens?: number; toolDefinitionsTokens?: number});
+				break;
+			case 'session.compaction_complete':
+				this.addCompactionCompleteBlock(data as {
+					success: boolean;
+					tokensRemoved?: number;
+					messagesRemoved?: number;
+					summaryContent?: string;
+					preCompactionTokens?: number;
+					postCompactionTokens?: number;
+					error?: string;
+				});
+				break;
 		}
 	}
 
@@ -804,6 +818,8 @@ export class SidekickView extends ItemView {
 			session.on('tool.execution_start', (event) => { this.handleSessionEvent(event); }),
 			session.on('tool.execution_complete', (event) => { this.handleSessionEvent(event); }),
 			session.on('skill.invoked', (event) => { this.handleSessionEvent(event); }),
+			session.on('session.compaction_start', (event) => { this.handleSessionEvent(event); }),
+			session.on('session.compaction_complete', (event) => { this.handleSessionEvent(event); }),
 		);
 	}
 
@@ -954,6 +970,7 @@ export class SidekickView extends ItemView {
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
 		const reasoningSummary = this.plugin.settings.reasoningSummary;
 		const contextTier = this.plugin.settings.contextTier;
+		const infiniteSessionsEnabled = this.plugin.settings.infiniteSessionsEnabled;
 
 		return {
 			model: (provider && this.plugin.settings.providerModel) ? this.plugin.settings.providerModel : opts.model,
@@ -969,6 +986,8 @@ export class SidekickView extends ItemView {
 			// No per-model support signal exists; the SDK ignores contextTier for models
 			// that don't support the long-context tier. Omitted when 'default'.
 			...(contextTier !== 'default' ? {contextTier} : {}),
+			// Infinite sessions: omit when enabled (SDK default); pass { enabled: false } to disable.
+			...(!infiniteSessionsEnabled ? {infiniteSessions: {enabled: false}} : {}),
 			...(provider ? {provider} : {}),
 			...(Object.keys(mcpServers).length > 0 ? {mcpServers} : {}),
 			...(customAgents.length > 0 ? {customAgents} : {}),

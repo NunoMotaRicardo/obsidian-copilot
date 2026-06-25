@@ -212,6 +212,18 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 				});
 		});
 
+		// Infinite sessions toggle — controls automatic context compaction.
+		menu.addItem(item => {
+			item.setTitle('Infinite sessions')
+				.setChecked(this.plugin.settings.infiniteSessionsEnabled)
+				.onClick(() => {
+					this.plugin.settings.infiniteSessionsEnabled = !this.plugin.settings.infiniteSessionsEnabled;
+					void this.plugin.saveSettings();
+					this.configDirty = true;
+					this.updateReasoningBadge();
+				});
+		});
+
 		menu.showAtMouseEvent(e);
 	};
 
@@ -250,9 +262,10 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		const current = this.plugin.settings.reasoningEffort;
 		const summary = this.plugin.settings.reasoningSummary;
 		const longContext = this.plugin.settings.contextTier === 'long_context';
+		const infiniteSessions = this.plugin.settings.infiniteSessionsEnabled;
 		// The icon stays interactive even without reasoning support, because the menu
-		// always offers the long-context toggle (no per-model support signal exists).
-		const active = ((current !== '' || summary !== '') && supportsReasoning) || longContext;
+		// always offers the long-context and infinite-sessions toggles.
+		const active = ((current !== '' || summary !== '') && supportsReasoning) || longContext || !infiniteSessions;
 		this.modelIconEl.toggleClass('is-active', active);
 		this.modelIconEl.toggleClass('is-non-interactive', false);
 		const parts: string[] = [];
@@ -261,7 +274,8 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 			if (summary !== '') parts.push(`summary ${summaryLabel(summary).toLowerCase()}`);
 		}
 		if (longContext) parts.push('long context');
-		if (!supportsReasoning && !longContext) {
+		if (!infiniteSessions) parts.push('infinite sessions off');
+		if (!supportsReasoning && !longContext && infiniteSessions) {
 			this.modelIconEl.setAttribute('title', 'Reasoning & context (model does not support reasoning effort)');
 		} else {
 			this.modelIconEl.setAttribute('title', parts.length > 0 ? `Reasoning & context — ${parts.join(', ')}` : 'Reasoning & context');

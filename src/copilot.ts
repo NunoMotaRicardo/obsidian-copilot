@@ -24,7 +24,7 @@ import type {
 	ElicitationSchemaField,
 	ElicitationFieldValue,
 } from '@github/copilot-sdk';
-import type {ProviderConfig, UserInputHandler, UserInputRequest, UserInputResponse, ReasoningEffort, ReasoningSummary, ContextTier} from '@github/copilot-sdk/dist/types';
+import type {ProviderConfig, UserInputHandler, UserInputRequest, UserInputResponse, ReasoningEffort, ReasoningSummary, ContextTier, InfiniteSessionConfig} from '@github/copilot-sdk/dist/types';
 import {resolveDefaultCliPath, cleanEnv} from './runtimeManager';
 import type {CliPathSource, ResolvedCliPath} from './runtimeManager';
 
@@ -415,6 +415,7 @@ export type {
 	ElicitationSchema,
 	ElicitationSchemaField,
 	ElicitationFieldValue,
+	InfiniteSessionConfig,
 };
 
 export type {CliPathSource, ResolvedCliPath};

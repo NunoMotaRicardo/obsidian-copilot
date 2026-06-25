@@ -1317,10 +1317,47 @@
 	display: none;
 }
 
-/* Hide debug info (tool calls + metadata) when unchecked */
+/* Hide debug info (tool calls + metadata + compaction blocks) when unchecked */
 .sidekick-hide-debug .sidekick-tool-calls,
 .sidekick-hide-debug .sidekick-msg-metadata {
 	display: none;
+}
+
+/* ── Compaction debug blocks ─────────────────────────────────── */
+
+.sidekick-compaction-block {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	margin: 4px 0;
+	padding: 0;
+}
+
+.sidekick-compaction-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.sidekick-compaction-icon svg {
+	width: 14px;
+	height: 14px;
+	color: var(--text-muted);
+}
+
+.sidekick-compaction-body {
+	padding: 4px 8px 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.sidekick-compaction-label {
+	font-weight: var(--font-semibold);
+	margin: 6px 0 2px;
+	color: var(--text-muted);
 }
 
 .sidekick-toolbar-group {

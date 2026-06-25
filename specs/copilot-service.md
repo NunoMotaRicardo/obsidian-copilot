@@ -36,7 +36,7 @@ Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin
 | `reasoningEffort` | settings + toolbar brain menu, only when `model.capabilities.supports.reasoningEffort` |
 | `reasoningSummary` | settings + toolbar brain menu (issue 0003), same gating as `reasoningEffort` |
 | `contextTier` | planned — issue 0004 |
-| `infiniteSessions` | planned — issue 0005 |
+| `infiniteSessions` | settings `infiniteSessionsEnabled` (issue #5) — `{ enabled }` config; omitted when `true` (SDK default), passed as `{ enabled: false }` when disabled |
 | `systemMessage` | agent body / built-in prompts |
 | `customAgents`, `agent` | config-loader agents |
 | `mcpServers` | config-loader `tools/mcp.json` |

@@ -11,6 +11,8 @@ import type {SidekickView} from '../sidekickView';
 import type {ChatMessage, ChatAttachment} from '../types';
 import {renderMarkdownSafe} from './utils';
 
+const MAX_DEBUG_DISPLAY_LEN = 5000;
+
 declare module '../sidekickView' {
 	interface SidekickView {
 		addUserMessage(content: string, attachments: ChatAttachment[], scopePaths: string[]): void;
@@ -28,6 +30,8 @@ declare module '../sidekickView' {
 		renderMessageMetadata(): void;
 		addToolCallBlock(toolCallId: string, toolName: string, args?: unknown): void;
 		completeToolCallBlock(toolCallId: string, success: boolean, result?: {content?: string; detailedContent?: string}, error?: {message: string}): void;
+		addCompactionStartBlock(data: {conversationTokens?: number; systemTokens?: number; toolDefinitionsTokens?: number}): void;
+		addCompactionCompleteBlock(data: {success: boolean; tokensRemoved?: number; messagesRemoved?: number; summaryContent?: string; preCompactionTokens?: number; postCompactionTokens?: number; error?: string}): void;
 		renderWelcome(): void;
 		updateSendButton(): void;
 		renderReasoningBlock(reasoning: string, parent: HTMLElement): Promise<void>;
@@ -660,12 +664,86 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 			const outputSection = detailsEl.createDiv({cls: 'sidekick-tool-call-section'});
 			outputSection.createDiv({cls: 'sidekick-tool-call-label', text: success ? 'Output' : 'Error'});
 			const pre = outputSection.createEl('pre', {cls: 'sidekick-tool-call-code'});
-			const maxLen = 5000;
-			const displayText = output.length > maxLen ? output.slice(0, maxLen) + '\n… (truncated)' : output;
+			const displayText = output.length > MAX_DEBUG_DISPLAY_LEN ? output.slice(0, MAX_DEBUG_DISPLAY_LEN) + '\n… (truncated)' : output;
 			pre.createEl('code', {text: displayText});
 		}
 
 		this.activeToolCalls.delete(toolCallId);
+		this.scrollToBottom();
+	};
+
+	// ── Compaction debug blocks ─────────────────────────────────
+
+	proto.addCompactionStartBlock = function (data: {conversationTokens?: number; systemTokens?: number; toolDefinitionsTokens?: number}): void {
+		if (!this.toolCallsContainer) return;
+
+		const details = this.toolCallsContainer.createEl('details', {cls: 'sidekick-compaction-block'});
+		const summary = details.createEl('summary', {cls: 'sidekick-compaction-summary'});
+		const iconEl = summary.createSpan({cls: 'sidekick-compaction-icon'});
+		setIcon(iconEl, 'archive');
+		summary.createSpan({text: 'Compaction started'});
+		const spinner = summary.createSpan({cls: 'sidekick-tool-call-spinner'});
+		setIcon(spinner, 'loader');
+
+		const body = details.createDiv({cls: 'sidekick-compaction-body'});
+		const lines: string[] = [];
+		if (data.conversationTokens != null) lines.push(`Conversation tokens: ${data.conversationTokens.toLocaleString()}`);
+		if (data.systemTokens != null) lines.push(`System tokens: ${data.systemTokens.toLocaleString()}`);
+		if (data.toolDefinitionsTokens != null) lines.push(`Tool definition tokens: ${data.toolDefinitionsTokens.toLocaleString()}`);
+		if (lines.length > 0) {
+			const pre = body.createEl('pre', {cls: 'sidekick-tool-call-code'});
+			pre.createEl('code', {text: lines.join('\n')});
+		}
+
+		this.scrollToBottom();
+	};
+
+	proto.addCompactionCompleteBlock = function (data: {success: boolean; tokensRemoved?: number; messagesRemoved?: number; summaryContent?: string; preCompactionTokens?: number; postCompactionTokens?: number; error?: string}): void {
+		if (!this.toolCallsContainer) return;
+
+		// Try to update the existing compaction_start block's spinner
+		const blocks = Array.from(this.toolCallsContainer.querySelectorAll('.sidekick-compaction-block'));
+		const startBlock = blocks.reverse().find(b => b.querySelector('.sidekick-tool-call-spinner'));
+		if (startBlock) {
+			const spinner = startBlock.querySelector('.sidekick-tool-call-spinner');
+			if (spinner) spinner.remove();
+			const summaryEl = startBlock.querySelector('summary');
+			if (summaryEl) {
+				const statusEl = summaryEl.createSpan({cls: `sidekick-tool-call-status ${data.success ? 'is-success' : 'is-error'}`});
+				setIcon(statusEl, data.success ? 'check' : 'x');
+			}
+		}
+
+		const details = this.toolCallsContainer.createEl('details', {cls: 'sidekick-compaction-block'});
+		const summary = details.createEl('summary', {cls: 'sidekick-compaction-summary'});
+		const iconEl = summary.createSpan({cls: 'sidekick-compaction-icon'});
+		setIcon(iconEl, 'archive');
+		summary.createSpan({text: data.success ? 'Compaction complete' : 'Compaction failed'});
+		const statusEl = summary.createSpan({cls: `sidekick-tool-call-status ${data.success ? 'is-success' : 'is-error'}`});
+		setIcon(statusEl, data.success ? 'check' : 'x');
+
+		const body = details.createDiv({cls: 'sidekick-compaction-body'});
+		const lines: string[] = [];
+		if (data.success) {
+			if (data.preCompactionTokens != null) lines.push(`Pre-compaction tokens: ${data.preCompactionTokens.toLocaleString()}`);
+			if (data.postCompactionTokens != null) lines.push(`Post-compaction tokens: ${data.postCompactionTokens.toLocaleString()}`);
+			const tokensRemoved = data.tokensRemoved ?? (data.preCompactionTokens != null && data.postCompactionTokens != null ? data.preCompactionTokens - data.postCompactionTokens : undefined);
+			if (tokensRemoved != null) lines.push(`Tokens removed: ${tokensRemoved.toLocaleString()}`);
+			if (data.messagesRemoved != null) lines.push(`Messages removed: ${data.messagesRemoved}`);
+		} else {
+			if (data.error) lines.push(`Error: ${data.error}`);
+		}
+		if (lines.length > 0) {
+			const pre = body.createEl('pre', {cls: 'sidekick-tool-call-code'});
+			pre.createEl('code', {text: lines.join('\n')});
+		}
+		if (data.summaryContent) {
+			body.createDiv({cls: 'sidekick-compaction-label', text: 'Summary'});
+			const summaryPre = body.createEl('pre', {cls: 'sidekick-tool-call-code'});
+			const displayText = data.summaryContent.length > MAX_DEBUG_DISPLAY_LEN ? data.summaryContent.slice(0, MAX_DEBUG_DISPLAY_LEN) + '\n… (truncated)' : data.summaryContent;
+			summaryPre.createEl('code', {text: displayText});
+		}
+
 		this.scrollToBottom();
 	};
 

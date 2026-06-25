@@ -363,6 +363,7 @@ export class TelegramBotService {
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
 		const reasoningSummary = this.plugin.settings.reasoningSummary;
 		const contextTier = this.plugin.settings.contextTier;
+		const infiniteSessionsEnabled = this.plugin.settings.infiniteSessionsEnabled;
 
 		return {
 			model: (provider && this.plugin.settings.providerModel) ? this.plugin.settings.providerModel : model,
@@ -375,6 +376,8 @@ export class TelegramBotService {
 			...(reasoningSummary !== '' ? {reasoningSummary: reasoningSummary as import('../copilot').ReasoningSummary} : {}),
 			// No per-model support signal; the SDK ignores contextTier for unsupported models.
 			...(contextTier !== 'default' ? {contextTier} : {}),
+			// Infinite sessions: omit when enabled (SDK default); pass { enabled: false } to disable.
+			...(!infiniteSessionsEnabled ? {infiniteSessions: {enabled: false}} : {}),
 			...(provider ? {provider} : {}),
 			...(Object.keys(mcpServers).length > 0 ? {mcpServers} : {}),
 			...(customAgents.length > 0 ? {customAgents} : {}),
