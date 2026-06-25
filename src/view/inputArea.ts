@@ -1,6 +1,7 @@
 import {MarkdownView, Menu, Notice, TFile, TFolder, setIcon} from 'obsidian';
 import type {SidekickView} from '../sidekickView';
 import type {PromptConfig, SelectionInfo} from '../types';
+import {IMAGE_EXTS} from '../types';
 import {VaultScopeModal} from '../modals/vaultScopeModal';
 
 declare module '../sidekickView' {
@@ -301,8 +302,6 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 		}
 
 		// ── External OS file drag ────────────────────────────────
-		const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
-
 		// Resolve absolute OS path using Electron webUtils, same as handleAttachFile
 		let getPath: (f: File) => string;
 		try {

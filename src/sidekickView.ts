@@ -2,6 +2,7 @@ import {
 	ItemView,
 	WorkspaceLeaf,
 	Notice,
+	TFile,
 	normalizePath,
 	setIcon,
 	Component,
@@ -33,7 +34,7 @@ import type {BackgroundSession} from './view/types';
 
 /** Frozen sentinel — when earlyEventBuffer points here, onEvent stops buffering. */
 const EMPTY_EVENT_BUFFER: readonly import('./copilot').SessionEvent[] = Object.freeze([]);
-import {buildPrompt, buildSdkAttachments, mapMcpServers} from './view/sessionConfig';
+import {buildPrompt, buildSdkAttachments, mapMcpServers, resolveNoteImageEmbeds} from './view/sessionConfig';
 import {fetchProviderModels} from './providerModels';
 import type {ByokProviderPreset} from './providerModels';
 
@@ -564,6 +565,47 @@ export class SidekickView extends ItemView {
 			const name = this.activeNotePath.split('/').pop() || this.activeNotePath;
 			currentAttachments.push({type: 'file', name, path: this.activeNotePath});
 		}
+
+		// Auto-include note-embedded images (AC-1 through AC-8)
+		if (this.plugin.settings.autoIncludeNoteImages && this.activeNotePath) {
+			try {
+				const noteFile = this.app.vault.getAbstractFileByPath(this.activeNotePath);
+				if (noteFile instanceof TFile) {
+					const noteContent = await this.app.vault.cachedRead(noteFile);
+					const embeddedImages = resolveNoteImageEmbeds(noteContent, this.activeNotePath, this.app);
+
+					// Determine effective cap: min of plugin setting and SDK model limit
+					const selectedModelInfo = this.models.find(m => m.id === this.selectedModel);
+					const sdkLimit = selectedModelInfo?.capabilities?.limits?.vision?.max_prompt_images;
+					const effectiveCap = sdkLimit != null
+						? Math.min(this.plugin.settings.maxNoteImages, sdkLimit)
+						: this.plugin.settings.maxNoteImages;
+
+					// Deduplicate against manually attached images (match by vault-relative path)
+					const existingPaths = new Set(
+						currentAttachments
+							.filter(a => (a.type === 'image' || a.type === 'file') && a.path && !a.absolutePath)
+							.map(a => a.path)
+					);
+
+					let added = 0;
+					for (const imgFile of embeddedImages) {
+						if (added >= effectiveCap) break;
+						if (existingPaths.has(imgFile.path)) continue;
+						currentAttachments.push({
+							type: 'image',
+							name: imgFile.name,
+							path: imgFile.path,
+						});
+						existingPaths.add(imgFile.path);
+						added++;
+					}
+				}
+			} catch (e) {
+				console.error('[sidekick] Failed to resolve note-embedded images:', e);
+			}
+		}
+
 		const currentScopePaths = [...this.scopePaths];
 
 		// Auto-select agent from prompt if specified

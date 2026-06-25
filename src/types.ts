@@ -87,6 +87,9 @@ export interface SelectionInfo {
 	endChar: number;
 }
 
+/** Image file extensions supported for attachment. */
+export const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
+
 /** Parsed trigger configuration from *.trigger.md. */
 export interface TriggerConfig {
 	name: string;

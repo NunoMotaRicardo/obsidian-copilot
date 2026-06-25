@@ -2,6 +2,7 @@ import {normalizePath, TFile, TFolder} from 'obsidian';
 import type {App} from 'obsidian';
 import type {MCPServerConfig, ModelInfo, MessageOptions} from '../copilot';
 import type {AgentConfig, McpServerEntry, ChatAttachment} from '../types';
+import {IMAGE_EXTS} from '../types';
 
 /**
  * Map MCP server entries to MCPServerConfig objects, filtering by enabled set.
@@ -172,4 +173,58 @@ export function buildSdkAttachments(params: {
 	}
 
 	return result.length > 0 ? result : undefined;
+}
+
+/**
+ * Resolve image embeds from note content.
+ * Scans for `![[image.ext]]` (wikilink) and `![alt](path.ext)` (markdown) patterns,
+ * resolves each to a TFile via Obsidian's metadata cache or vault, and returns them
+ * in document order (first match first).
+ */
+export function resolveNoteImageEmbeds(
+	content: string,
+	sourcePath: string,
+	app: App,
+): TFile[] {
+	const results: TFile[] = [];
+	const seenPaths = new Set<string>();
+
+	// Match both wikilink embeds ![[...]] and markdown embeds ![...](...)
+	// Wikilink: ![[filename.ext]] or ![[filename.ext|alias]]
+	// Markdown: ![alt](path.ext) or ![alt](path.ext "title")
+	const embedRegex = /!\[\[([^\]|]+?)(?:\|[^\]]*?)?\]\]|!\[(?:[^\]]*?)\]\(([^)\s]+?)(?:\s+"[^"]*")?\)/g;
+
+	let match: RegExpExecArray | null;
+	while ((match = embedRegex.exec(content)) !== null) {
+		const raw = match[1] ?? match[2]; // [1] = wikilink target, [2] = markdown path
+		if (!raw) continue;
+
+		// Strip any heading/block references from wikilinks (e.g. ![[image.png#section]])
+		const target = raw.split('#')[0]!.trim();
+		if (!target) continue;
+
+		// Check if the file extension is an image type
+		const ext = target.split('.').pop()?.toLowerCase() ?? '';
+		if (!IMAGE_EXTS.has(ext)) continue;
+
+		// Resolve the file
+		let file: TFile | null = null;
+		if (match[1] !== undefined) {
+			// Wikilink: use metadataCache for proper vault-relative resolution
+			const resolved = app.metadataCache.getFirstLinkpathDest(target, sourcePath);
+			if (resolved instanceof TFile) file = resolved;
+		} else {
+			// Markdown link: decode URI and resolve from vault
+			const decoded = decodeURIComponent(target);
+			const abstract = app.vault.getAbstractFileByPath(decoded);
+			if (abstract instanceof TFile) file = abstract;
+		}
+
+		if (file && !seenPaths.has(file.path)) {
+			seenPaths.add(file.path);
+			results.push(file);
+		}
+	}
+
+	return results;
 }

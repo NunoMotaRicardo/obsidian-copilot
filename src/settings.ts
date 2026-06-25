@@ -83,6 +83,11 @@ export interface SidekickSettings {
 	/** Search mode: 'basic' reuses session with minimal config, 'advanced' allows full agent/model/skills/tools. */
 	searchMode: 'basic' | 'advanced';
 
+	/** Automatically resolve and attach note-embedded images as context. */
+	autoIncludeNoteImages: boolean;
+	/** Maximum number of note-embedded images to auto-attach per message. */
+	maxNoteImages: number;
+
 	/** Telegram Bot ID (informational, not secret). */
 	telegramBotId: string;
 	/** Telegram Bot token (stored securely via local storage). */
@@ -143,6 +148,8 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	infiniteSessionsEnabled: true,
 	searchAgent: '',
 	searchMode: 'basic',
+	autoIncludeNoteImages: true,
+	maxNoteImages: 3,
 	telegramBotId: '',
 	telegramBotToken: '',
 	telegramAllowedUsers: '',
@@ -831,6 +838,34 @@ export class SidekickSettingTab extends PluginSettingTab {
 					this.plugin.settings.inlineIconEnabled = value;
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(capPanel)
+			.setName('Auto-include note images')
+			.setDesc('Automatically attach images embedded in the active note when sending a message.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoIncludeNoteImages)
+				.onChange(async (value) => {
+					this.plugin.settings.autoIncludeNoteImages = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(capPanel)
+			.setName('Max note images')
+			.setDesc('Maximum number of note-embedded images to auto-attach per message.')
+			.addText(text => {
+				text.inputEl.type = 'number';
+				text.inputEl.min = '1';
+				text.inputEl.max = '20';
+				text.inputEl.style.width = '60px';
+				text.setValue(String(this.plugin.settings.maxNoteImages))
+					.onChange(async (value) => {
+						const num = parseInt(value, 10);
+						if (!isNaN(num) && num >= 1 && num <= 20) {
+							this.plugin.settings.maxNoteImages = num;
+							await this.plugin.saveSettings();
+						}
+					});
+			});
 
 		// ══════════════════════════════════════════════════════════
 		// TAB 4: Tools
