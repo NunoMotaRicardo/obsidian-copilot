@@ -1,6 +1,6 @@
 import {MarkdownView, Menu, Notice, TFile, TFolder, setIcon} from 'obsidian';
 import type {SidekickView} from '../sidekickView';
-import type {PromptConfig, SelectionInfo} from '../types';
+import {IMAGE_EXTS, isImageAttachment, type PromptConfig, type SelectionInfo} from '../types';
 import {VaultScopeModal} from '../modals/vaultScopeModal';
 
 declare module '../sidekickView' {
@@ -301,8 +301,6 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 		}
 
 		// ── External OS file drag ────────────────────────────────
-		const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
-
 		// Resolve absolute OS path using Electron webUtils, same as handleAttachFile
 		let getPath: (f: File) => string;
 		try {
@@ -351,7 +349,7 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 			const att = this.attachments[i];
 			if (!att) continue;
 			const tag = this.attachmentsBar.createDiv({cls: 'sidekick-attachment-tag'});
-			const typeIcon = att.type === 'image' ? 'image' : att.type === 'clipboard' ? 'clipboard' : att.type === 'selection' ? 'text-cursor-input' : 'file-text';
+			const typeIcon = isImageAttachment(att) ? 'image' : att.type === 'clipboard' ? 'clipboard' : att.type === 'selection' ? 'text-cursor-input' : 'file-text';
 			const ic = tag.createSpan({cls: 'sidekick-attachment-icon'});
 			setIcon(ic, typeIcon);
 			tag.createSpan({text: att.name, cls: 'sidekick-attachment-name'});
