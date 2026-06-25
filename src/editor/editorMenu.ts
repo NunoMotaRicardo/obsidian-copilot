@@ -577,6 +577,125 @@ async function runActionPrompt(
 
 /* ── Image context menu ───────────────────────────────────────── */
 
+/** Regex for wikilink image embed: ![[filename.ext]] or ![[filename.ext|alt]] */
+const WIKILINK_IMAGE_RE = /!\[\[([^\]|]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg))(?:\|[^\]]*)?\]\]/i;
+/** Regex for standard markdown image embed: ![alt](path.ext) */
+const MARKDOWN_IMAGE_RE = /!\[[^\]]*\]\(([^)]+\.(?:png|jpg|jpeg|gif|webp|bmp|svg))\)/i;
+
+/**
+ * Check whether the cursor line contains an image embed and resolve the
+ * referenced file. Returns the resolved TFile or null.
+ */
+function resolveImageEmbedOnLine(plugin: SidekickPlugin, view: EditorView): TFile | null {
+	const sel = view.state.selection.main;
+	const line = view.state.doc.lineAt(sel.head);
+	const lineText = line.text;
+
+	let linkpath: string | null = null;
+	const wikiMatch = WIKILINK_IMAGE_RE.exec(lineText);
+	if (wikiMatch && wikiMatch[1]) {
+		linkpath = wikiMatch[1];
+	} else {
+		const mdMatch = MARKDOWN_IMAGE_RE.exec(lineText);
+		if (mdMatch && mdMatch[1]) {
+			linkpath = mdMatch[1];
+		}
+	}
+	if (!linkpath) return null;
+
+	const activeFile = plugin.app.workspace.getActiveFile();
+	const resolved = plugin.app.metadataCache.getFirstLinkpathDest(linkpath, activeFile?.path ?? '');
+	if (!resolved || !IMAGE_EXTENSIONS.has(resolved.extension.toLowerCase())) return null;
+	return resolved;
+}
+
+/**
+ * Populate a menu with image-specific Sidekick actions for editor context menu.
+ * Shown when the cursor is on a line containing an image embed.
+ */
+function buildEditorImageMenu(menu: Menu, plugin: SidekickPlugin, _view: EditorView, file: TFile): void {
+	menu.addItem((item) =>
+		item.setTitle('Extract text below')
+			.setIcon('arrow-down-to-line')
+			.onClick(() => void extractAndInsertBelow(plugin, file)),
+	);
+	menu.addItem((item) =>
+		item.setTitle('Convert to mermaid below')
+			.setIcon('git-fork')
+			.onClick(() => void convertToMermaidBelow(plugin, file)),
+	);
+	menu.addItem((item) =>
+		item.setTitle('Ask about image')
+			.setIcon('message-circle')
+			.onClick(() => showAskAboutImageModal(plugin, file)),
+	);
+}
+
+/** "Ask about image" — user enters a free-form prompt about the image. */
+function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile): void {
+	const modal = new Modal(plugin.app);
+	modal.titleEl.setText('Ask about image');
+
+	modal.contentEl.createEl('p', {
+		text: `Ask a question about ${file.name}:`,
+		cls: 'sidekick-menu-modal-desc',
+	});
+
+	const tc = new TextComponent(modal.contentEl);
+	tc.inputEl.classList.add('sidekick-modal-text-input');
+	tc.setPlaceholder('Ex: what does this diagram show?');
+
+	const btnRow = modal.contentEl.createDiv({cls: 'modal-button-container'});
+	const goBtn = btnRow.createEl('button', {text: 'Ask', cls: 'mod-cta'});
+	const cancelBtn = btnRow.createEl('button', {text: 'Cancel'});
+
+	goBtn.addEventListener('click', () => {
+		const prompt = tc.getValue().trim();
+		if (!prompt) { new Notice('Please enter a question.'); return; }
+		modal.close();
+		void askAboutImage(plugin, file, prompt);
+	});
+	cancelBtn.addEventListener('click', () => modal.close());
+
+	modal.scope.register([], 'Enter', () => { goBtn.click(); return false; });
+
+	modal.open();
+	tc.inputEl.focus();
+}
+
+/** Send a user prompt about an image and insert the response below the embed. */
+async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: string): Promise<void> {
+	if (!plugin.copilot) { new Notice('Copilot is not configured.'); return; }
+
+	const ctx = getActiveEditorAndEmbed(plugin, file);
+	if (!ctx) return;
+	const {cmView, embed} = ctx;
+
+	const absPath = getAbsolutePath(plugin, file);
+	const notice = new Notice('Sidekick: asking about image…', 0);
+	try {
+		const {content: result, sessionId} = await plugin.copilot.inlineChat({
+			prompt: userPrompt,
+			model: plugin.settings.inlineModel || undefined,
+			systemMessage:
+				'You are an image analysis assistant. Answer the user’s question about the provided image. ' +
+				'Return your answer as clean Markdown. Do not include markdown code fences or introductory text.',
+			attachments: [{type: 'file', path: absPath, displayName: file.name}],
+		});
+		registerInlineSession(plugin, sessionId, `Ask: ${userPrompt.slice(0, 30)}`);
+
+		const raw = result?.trim() ?? null;
+		if (!raw) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+
+		insertBelowEmbed(cmView, embed, raw);
+		notice.hide();
+		new Notice('Sidekick: response inserted.');
+	} catch (e) {
+		notice.hide();
+		new Notice(`Sidekick: error — ${String(e)}`);
+	}
+}
+
 /** Add Sidekick submenu items for an image file in the vault tree. */
 function buildImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile): void {
 	menu.addItem((item) => {
@@ -1021,6 +1140,13 @@ async function openSidekickSearchWithScope(plugin: SidekickPlugin, folderPath: s
 export function buildSidekickMenu(menu: Menu, plugin: SidekickPlugin, view: EditorView): void {
 	const sel = view.state.selection.main;
 	const hasSelection = !sel.empty;
+
+	// ── Image embed on cursor line — show image actions ──
+	const imageFile = resolveImageEmbedOnLine(plugin, view);
+	if (imageFile) {
+		buildEditorImageMenu(menu, plugin, view, imageFile);
+		return;
+	}
 
 	if (hasSelection) {
 		// ── Selection: text-transform actions ──
