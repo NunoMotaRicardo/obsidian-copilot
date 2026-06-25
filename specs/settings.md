@@ -33,8 +33,13 @@ For every BYOK preset (`openai`, `azure`, `anthropic`, `ollama`, `foundry-local`
 **direct model-list fetch** against the configured provider, via
 `fetchProviderModels()` (`src/providerModels.ts`):
 
-- `GET ${baseUrl}/api/tags` for `ollama` (parses `{ models: [{ name, ... }] }`).
+- `GET ${baseUrl}/api/tags` for `ollama` (strips a trailing `/v1` from the base URL first,
+  since ollama's native endpoint is `/api/tags` on the bare host; parses
+  `{ models: [{ name, ... }] }`).
 - `GET ${baseUrl}/v1/models` for all other BYOK presets (parses `{ data: [{ id, name?, ... }] }`).
+  If the base URL already ends in `/v1` (e.g. Azure's default
+  `https://...openai.azure.com/openai/v1/`), appends only `/models` to avoid a doubled
+  `/v1/v1/models` path.
 
 `fetchProviderModels()` returns a discriminated result (`ok` + `models: ModelInfo[]`, or an
 error) rather than swallowing failures into `[]`, so the Test handler can distinguish the

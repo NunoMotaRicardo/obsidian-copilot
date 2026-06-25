@@ -52,8 +52,10 @@ function buildAuthHeaders(preset: ByokProviderPreset, apiKey?: string, bearerTok
 /**
  * Fetch and parse the model list from a BYOK provider endpoint.
  *
- * - `ollama` -> `GET ${baseUrl}/api/tags`, parsing `{ models: [{ name, ... }] }`.
+ * - `ollama` -> strips trailing `/v1` from baseUrl, then `GET ${root}/api/tags`,
+ *   parsing `{ models: [{ name, ... }] }`.
  * - everything else -> `GET ${baseUrl}/v1/models`, parsing `{ data: [{ id, name?, ... }] }`.
+ *   If baseUrl already ends in `/v1` (e.g. Azure default), appends only `/models`.
  *
  * Returns a discriminated result so callers can distinguish "0 models" from
  * "request failed".
