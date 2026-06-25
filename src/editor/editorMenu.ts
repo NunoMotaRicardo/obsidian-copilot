@@ -588,19 +588,28 @@ const MARKDOWN_IMAGE_RE = new RegExp(`!\\[[^\\]]*\\]\\(([^)]+\\.(?:${IMAGE_EXT_P
  * Check whether the cursor line contains an image embed and resolve the
  * referenced file. Returns the resolved TFile or null.
  */
-function resolveImageEmbedOnLine(plugin: SidekickPlugin, view: EditorView): TFile | null {
+function resolveImageEmbedOnLine(
+	plugin: SidekickPlugin,
+	view: EditorView,
+): {file: TFile; embed: {from: number; to: number}} | null {
 	const sel = view.state.selection.main;
 	const line = view.state.doc.lineAt(sel.head);
 	const lineText = line.text;
 
 	let linkpath: string | null = null;
+	let matchFrom = 0;
+	let matchLength = 0;
 	const wikiMatch = WIKILINK_IMAGE_RE.exec(lineText);
 	if (wikiMatch && wikiMatch[1]) {
 		linkpath = wikiMatch[1];
+		matchFrom = wikiMatch.index;
+		matchLength = wikiMatch[0].length;
 	} else {
 		const mdMatch = MARKDOWN_IMAGE_RE.exec(lineText);
 		if (mdMatch && mdMatch[1]) {
 			linkpath = mdMatch[1];
+			matchFrom = mdMatch.index;
+			matchLength = mdMatch[0].length;
 		}
 	}
 	if (!linkpath) return null;
@@ -608,33 +617,36 @@ function resolveImageEmbedOnLine(plugin: SidekickPlugin, view: EditorView): TFil
 	const activeFile = plugin.app.workspace.getActiveFile();
 	const resolved = plugin.app.metadataCache.getFirstLinkpathDest(linkpath, activeFile?.path ?? '');
 	if (!resolved || !IMAGE_EXTENSIONS.has(resolved.extension.toLowerCase())) return null;
-	return resolved;
+	return {
+		file: resolved,
+		embed: {from: line.from + matchFrom, to: line.from + matchFrom + matchLength},
+	};
 }
 
 /**
  * Populate a menu with image-specific Sidekick actions for editor context menu.
  * Shown when the cursor is on a line containing an image embed.
  */
-function buildEditorImageMenu(menu: Menu, plugin: SidekickPlugin, _view: EditorView, file: TFile): void {
+function buildEditorImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile, embed: {from: number; to: number}): void {
 	menu.addItem((item) =>
 		item.setTitle('Extract text below')
 			.setIcon('arrow-down-to-line')
-			.onClick(() => void extractAndInsertBelow(plugin, file)),
+			.onClick(() => void extractAndInsertBelow(plugin, file, embed)),
 	);
 	menu.addItem((item) =>
 		item.setTitle('Convert to mermaid below')
 			.setIcon('git-fork')
-			.onClick(() => void convertToMermaidBelow(plugin, file)),
+			.onClick(() => void convertToMermaidBelow(plugin, file, embed)),
 	);
 	menu.addItem((item) =>
 		item.setTitle('Ask about image')
 			.setIcon('message-circle')
-			.onClick(() => showAskAboutImageModal(plugin, file)),
+			.onClick(() => showAskAboutImageModal(plugin, file, embed)),
 	);
 }
 
 /** "Ask about image" — user enters a free-form prompt about the image. */
-function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile): void {
+function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): void {
 	const modal = new Modal(plugin.app);
 	modal.titleEl.setText('Ask about image');
 
@@ -655,7 +667,7 @@ function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile): void {
 		const prompt = tc.getValue().trim();
 		if (!prompt) { new Notice('Please enter a question.'); return; }
 		modal.close();
-		void askAboutImage(plugin, file, prompt);
+		void askAboutImage(plugin, file, prompt, embedHint);
 	});
 	cancelBtn.addEventListener('click', () => modal.close());
 
@@ -666,10 +678,10 @@ function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile): void {
 }
 
 /** Send a user prompt about an image and insert the response below the embed. */
-async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: string): Promise<void> {
+async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: string, embedHint?: {from: number; to: number}): Promise<void> {
 	if (!plugin.copilot) { new Notice('Copilot is not configured.'); return; }
 
-	const ctx = getActiveEditorAndEmbed(plugin, file);
+	const ctx = getActiveEditorAndEmbed(plugin, file, embedHint);
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
@@ -829,6 +841,7 @@ function escapeRegex(s: string): string {
 function getActiveEditorAndEmbed(
 	plugin: SidekickPlugin,
 	file: TFile,
+	embedHint?: {from: number; to: number},
 ): {cmView: EditorView; embed: {from: number; to: number}} | null {
 	const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
 	if (!activeView) {
@@ -838,7 +851,7 @@ function getActiveEditorAndEmbed(
 	const cmView: EditorView | undefined = (activeView as unknown as {editor?: {cm?: EditorView}}).editor?.cm;
 	if (!cmView) return null;
 
-	const embed = findImageEmbed(cmView, file);
+	const embed = embedHint ?? findImageEmbed(cmView, file);
 	if (!embed) {
 		new Notice(`Sidekick: could not find a reference to "${file.name}" in the active note.`);
 		return null;
@@ -853,8 +866,8 @@ function insertBelowEmbed(cmView: EditorView, embed: {from: number; to: number},
 }
 
 /** Extract image content and insert it below the embed in the active note. */
-async function extractAndInsertBelow(plugin: SidekickPlugin, file: TFile): Promise<void> {
-	const ctx = getActiveEditorAndEmbed(plugin, file);
+async function extractAndInsertBelow(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): Promise<void> {
+	const ctx = getActiveEditorAndEmbed(plugin, file, embedHint);
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
@@ -895,8 +908,8 @@ async function extractAndReplace(plugin: SidekickPlugin, file: TFile): Promise<v
 }
 
 /** Convert an image to a Mermaid diagram and insert it below the embed in the active note. */
-async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile): Promise<void> {
-	const ctx = getActiveEditorAndEmbed(plugin, file);
+async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): Promise<void> {
+	const ctx = getActiveEditorAndEmbed(plugin, file, embedHint);
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
@@ -1149,9 +1162,9 @@ export function buildSidekickMenu(menu: Menu, plugin: SidekickPlugin, view: Edit
 	const hasSelection = !sel.empty;
 
 	// ── Image embed on cursor line — show image actions ──
-	const imageFile = resolveImageEmbedOnLine(plugin, view);
-	if (imageFile) {
-		buildEditorImageMenu(menu, plugin, view, imageFile);
+	const imageResult = resolveImageEmbedOnLine(plugin, view);
+	if (imageResult) {
+		buildEditorImageMenu(menu, plugin, imageResult.file, imageResult.embed);
 		return;
 	}
 
