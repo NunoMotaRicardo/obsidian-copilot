@@ -577,6 +577,139 @@ async function runActionPrompt(
 
 /* ── Image context menu ───────────────────────────────────────── */
 
+const IMAGE_EXT_PATTERN = Array.from(IMAGE_EXTENSIONS).join('|');
+
+/** Regex for wikilink image embed: ![[filename.ext]] or ![[filename.ext|alt]] */
+const WIKILINK_IMAGE_RE = new RegExp(`!\\[\\[([^\\]|]+\\.(?:${IMAGE_EXT_PATTERN}))(?:\\|[^\\]]*)?\\]\\]`, 'i');
+/** Regex for standard markdown image embed: ![alt](path.ext) */
+const MARKDOWN_IMAGE_RE = new RegExp(`!\\[[^\\]]*\\]\\(([^)]+\\.(?:${IMAGE_EXT_PATTERN}))\\)`, 'i');
+
+/**
+ * Check whether the cursor line contains an image embed and resolve the
+ * referenced file. Returns the resolved TFile or null.
+ */
+function resolveImageEmbedOnLine(
+	plugin: SidekickPlugin,
+	view: EditorView,
+): {file: TFile; embed: {from: number; to: number}} | null {
+	const sel = view.state.selection.main;
+	const line = view.state.doc.lineAt(sel.head);
+	const lineText = line.text;
+
+	let linkpath: string | null = null;
+	let matchFrom = 0;
+	let matchLength = 0;
+	const wikiMatch = WIKILINK_IMAGE_RE.exec(lineText);
+	if (wikiMatch && wikiMatch[1]) {
+		linkpath = wikiMatch[1];
+		matchFrom = wikiMatch.index;
+		matchLength = wikiMatch[0].length;
+	} else {
+		const mdMatch = MARKDOWN_IMAGE_RE.exec(lineText);
+		if (mdMatch && mdMatch[1]) {
+			linkpath = mdMatch[1];
+			matchFrom = mdMatch.index;
+			matchLength = mdMatch[0].length;
+		}
+	}
+	if (!linkpath) return null;
+
+	const activeFile = plugin.app.workspace.getActiveFile();
+	const resolved = plugin.app.metadataCache.getFirstLinkpathDest(linkpath, activeFile?.path ?? '');
+	if (!resolved || !IMAGE_EXTENSIONS.has(resolved.extension.toLowerCase())) return null;
+	return {
+		file: resolved,
+		embed: {from: line.from + matchFrom, to: line.from + matchFrom + matchLength},
+	};
+}
+
+/**
+ * Populate a menu with image-specific Sidekick actions for editor context menu.
+ * Shown when the cursor is on a line containing an image embed.
+ */
+function buildEditorImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile, embed: {from: number; to: number}): void {
+	menu.addItem((item) =>
+		item.setTitle('Extract text below')
+			.setIcon('arrow-down-to-line')
+			.onClick(() => void extractAndInsertBelow(plugin, file, embed)),
+	);
+	menu.addItem((item) =>
+		item.setTitle('Convert to mermaid below')
+			.setIcon('git-fork')
+			.onClick(() => void convertToMermaidBelow(plugin, file, embed)),
+	);
+	menu.addItem((item) =>
+		item.setTitle('Ask about image')
+			.setIcon('message-circle')
+			.onClick(() => showAskAboutImageModal(plugin, file, embed)),
+	);
+}
+
+/** "Ask about image" — user enters a free-form prompt about the image. */
+function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): void {
+	const modal = new Modal(plugin.app);
+	modal.titleEl.setText('Ask about image');
+
+	modal.contentEl.createEl('p', {
+		text: `Ask a question about ${file.name}:`,
+		cls: 'sidekick-menu-modal-desc',
+	});
+
+	const tc = new TextComponent(modal.contentEl);
+	tc.inputEl.classList.add('sidekick-modal-text-input');
+	tc.setPlaceholder('Ex: what does this diagram show?');
+
+	const btnRow = modal.contentEl.createDiv({cls: 'modal-button-container'});
+	const goBtn = btnRow.createEl('button', {text: 'Ask', cls: 'mod-cta'});
+	const cancelBtn = btnRow.createEl('button', {text: 'Cancel'});
+
+	goBtn.addEventListener('click', () => {
+		const prompt = tc.getValue().trim();
+		if (!prompt) { new Notice('Please enter a question.'); return; }
+		modal.close();
+		void askAboutImage(plugin, file, prompt, embedHint);
+	});
+	cancelBtn.addEventListener('click', () => modal.close());
+
+	modal.scope.register([], 'Enter', () => { goBtn.click(); return false; });
+
+	modal.open();
+	tc.inputEl.focus();
+}
+
+/** Send a user prompt about an image and insert the response below the embed. */
+async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: string, embedHint?: {from: number; to: number}): Promise<void> {
+	if (!plugin.copilot) { new Notice('Copilot is not configured.'); return; }
+
+	const ctx = getActiveEditorAndEmbed(plugin, file, embedHint);
+	if (!ctx) return;
+	const {cmView, embed} = ctx;
+
+	const absPath = getAbsolutePath(plugin, file);
+	const notice = new Notice('Sidekick: asking about image…', 0);
+	try {
+		const {content: result, sessionId} = await plugin.copilot.inlineChat({
+			prompt: userPrompt,
+			model: plugin.settings.inlineModel || undefined,
+			systemMessage:
+				'You are an image analysis assistant. Answer the user’s question about the provided image. ' +
+				'Return your answer as clean Markdown. Do not include markdown code fences or introductory text.',
+			attachments: [{type: 'file', path: absPath, displayName: file.name}],
+		});
+		registerInlineSession(plugin, sessionId, `Ask: ${userPrompt.slice(0, 30)}`);
+
+		const raw = result?.trim() ?? null;
+		if (!raw) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+
+		insertBelowEmbed(cmView, embed, raw);
+		notice.hide();
+		new Notice('Sidekick: response inserted.');
+	} catch (e) {
+		notice.hide();
+		new Notice(`Sidekick: error — ${String(e)}`);
+	}
+}
+
 /** Add Sidekick submenu items for an image file in the vault tree. */
 function buildImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile): void {
 	menu.addItem((item) => {
@@ -599,6 +732,11 @@ function buildImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile): void {
 			si.setTitle('Convert to mermaid diagram below')
 				.setIcon('git-fork')
 				.onClick(() => void convertToMermaidBelow(plugin, file)),
+		);
+		submenu.addItem((si) =>
+			si.setTitle('Ask about image')
+				.setIcon('message-circle')
+				.onClick(() => showAskAboutImageModal(plugin, file)),
 		);
 	});
 }
@@ -703,6 +841,7 @@ function escapeRegex(s: string): string {
 function getActiveEditorAndEmbed(
 	plugin: SidekickPlugin,
 	file: TFile,
+	embedHint?: {from: number; to: number},
 ): {cmView: EditorView; embed: {from: number; to: number}} | null {
 	const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
 	if (!activeView) {
@@ -712,7 +851,7 @@ function getActiveEditorAndEmbed(
 	const cmView: EditorView | undefined = (activeView as unknown as {editor?: {cm?: EditorView}}).editor?.cm;
 	if (!cmView) return null;
 
-	const embed = findImageEmbed(cmView, file);
+	const embed = embedHint ?? findImageEmbed(cmView, file);
 	if (!embed) {
 		new Notice(`Sidekick: could not find a reference to "${file.name}" in the active note.`);
 		return null;
@@ -727,8 +866,8 @@ function insertBelowEmbed(cmView: EditorView, embed: {from: number; to: number},
 }
 
 /** Extract image content and insert it below the embed in the active note. */
-async function extractAndInsertBelow(plugin: SidekickPlugin, file: TFile): Promise<void> {
-	const ctx = getActiveEditorAndEmbed(plugin, file);
+async function extractAndInsertBelow(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): Promise<void> {
+	const ctx = getActiveEditorAndEmbed(plugin, file, embedHint);
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
@@ -769,8 +908,8 @@ async function extractAndReplace(plugin: SidekickPlugin, file: TFile): Promise<v
 }
 
 /** Convert an image to a Mermaid diagram and insert it below the embed in the active note. */
-async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile): Promise<void> {
-	const ctx = getActiveEditorAndEmbed(plugin, file);
+async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): Promise<void> {
+	const ctx = getActiveEditorAndEmbed(plugin, file, embedHint);
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
@@ -1021,6 +1160,13 @@ async function openSidekickSearchWithScope(plugin: SidekickPlugin, folderPath: s
 export function buildSidekickMenu(menu: Menu, plugin: SidekickPlugin, view: EditorView): void {
 	const sel = view.state.selection.main;
 	const hasSelection = !sel.empty;
+
+	// ── Image embed on cursor line — show image actions ──
+	const imageResult = resolveImageEmbedOnLine(plugin, view);
+	if (imageResult) {
+		buildEditorImageMenu(menu, plugin, imageResult.file, imageResult.embed);
+		return;
+	}
 
 	if (hasSelection) {
 		// ── Selection: text-transform actions ──

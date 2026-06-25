@@ -9,12 +9,14 @@ Minor/Major revise, Describe, Answer, Explain, Expand, Summarize, Chat with side
 Autocomplete toggle. Without: Edit the note, Structure and refine, Chat, Autocomplete.
 File/folder explorer menu: note edit, folder summary note, image extraction/mermaid.
 
-Planned: editor context menu image actions on embeds (issue #28). When the cursor is on a line
-containing an image embed (`![[image.png]]` or `![alt](path.png)`), show image-specific actions:
-extract text below, convert to Mermaid below, and a new "Ask about image" custom-prompt action
-(modal for free-form question, response inserted below the embed). Consolidates with existing
-file-explorer image actions (`extractImageContent()`, `convertToMermaidBelow()`) rather than
-duplicating.
+When the cursor is on a line containing an image embed (`![[image.png]]` or `![alt](path.png)`),
+the Sidekick submenu shows image-specific actions instead of the normal selection/note actions:
+**Extract text below**, **Convert to mermaid below**, and **Ask about image** (a modal for a
+free-form question whose response is inserted below the embed). These reuse the same module-level
+functions as the file-explorer image menu (`extractImageContent()`, `convertToMermaidBelow()`),
+so there is no duplication. The image embed is detected via regex matching for common image
+extensions in both wikilink and standard markdown syntaxes, then resolved through
+`app.metadataCache.getFirstLinkpathDest()` (and validated against `IMAGE_EXTENSIONS`).
 
 - Quick actions replace text in place using the **inline operations model** via
   `CopilotService.chat()` (ephemeral session, `approveAll`). When a BYOK provider is active,
