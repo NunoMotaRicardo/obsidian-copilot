@@ -577,9 +577,8 @@ export class SidekickView extends ItemView {
 					// Determine effective cap: min of plugin setting and SDK model limit
 					const selectedModelInfo = this.models.find(m => m.id === this.selectedModel);
 					const sdkLimit = selectedModelInfo?.capabilities?.limits?.vision?.max_prompt_images;
-					const effectiveCap = sdkLimit != null
-						? Math.min(this.plugin.settings.maxNoteImages, sdkLimit)
-						: this.plugin.settings.maxNoteImages;
+					const configuredCap = Math.max(1, Math.min(20, this.plugin.settings.maxNoteImages));
+					const effectiveCap = sdkLimit != null ? Math.min(configuredCap, sdkLimit) : configuredCap;
 
 					// Deduplicate against manually attached images (match by vault-relative path)
 					const existingPaths = new Set(
