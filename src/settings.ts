@@ -664,6 +664,10 @@ export class SidekickSettingTab extends PluginSettingTab {
 						this.plugin.settings.providerBaseUrl = '';
 					}
 					this.plugin.settings.providerWireApi = defaults?.wireApi ?? 'completions';
+					if (newPreset === 'github') {
+						this.plugin.settings.providerModel = '';
+						this.plugin.settings.inlineModel = '';
+					}
 					await this.plugin.saveSettings();
 					rebuildProviderFields();
 					await refreshModels();
@@ -681,7 +685,6 @@ export class SidekickSettingTab extends PluginSettingTab {
 							}
 							const testSession = await this.plugin.copilot.createSession({
 								onPermissionRequest: () => ({allow: false, kind: 'denied-interactively-by-user' as const}),
-								...(this.plugin.settings.providerModel ? {model: this.plugin.settings.providerModel} : {}),
 							});
 							await testSession.disconnect();
 							new Notice('Provider session created successfully.');
