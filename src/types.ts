@@ -88,10 +88,10 @@ export interface SelectionInfo {
 }
 
 /** Image file extensions recognized for icon display and drag-drop handling. */
-export const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
+export const IMAGE_EXTS: ReadonlySet<string> = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
 
 /** Check whether an attachment represents an image (for icon rendering). */
-export function isImageAttachment(att: {type: string; name?: string; mimeType?: string}): boolean {
+export function isImageAttachment(att: Pick<ChatAttachment, 'type' | 'name' | 'mimeType'>): boolean {
 	if (att.type === 'image') return true;
 	if (att.type === 'blob') return !!att.mimeType?.startsWith('image/');
 	if (att.type === 'file' && att.name) {
