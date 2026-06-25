@@ -11,6 +11,8 @@ import type {SidekickView} from '../sidekickView';
 import type {ChatMessage, ChatAttachment} from '../types';
 import {renderMarkdownSafe} from './utils';
 
+const MAX_DEBUG_DISPLAY_LEN = 5000;
+
 declare module '../sidekickView' {
 	interface SidekickView {
 		addUserMessage(content: string, attachments: ChatAttachment[], scopePaths: string[]): void;
@@ -662,8 +664,7 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 			const outputSection = detailsEl.createDiv({cls: 'sidekick-tool-call-section'});
 			outputSection.createDiv({cls: 'sidekick-tool-call-label', text: success ? 'Output' : 'Error'});
 			const pre = outputSection.createEl('pre', {cls: 'sidekick-tool-call-code'});
-			const maxLen = 5000;
-			const displayText = output.length > maxLen ? output.slice(0, maxLen) + '\n… (truncated)' : output;
+			const displayText = output.length > MAX_DEBUG_DISPLAY_LEN ? output.slice(0, MAX_DEBUG_DISPLAY_LEN) + '\n… (truncated)' : output;
 			pre.createEl('code', {text: displayText});
 		}
 
@@ -737,8 +738,7 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 		if (data.summaryContent) {
 			body.createDiv({cls: 'sidekick-compaction-label', text: 'Summary'});
 			const summaryPre = body.createEl('pre', {cls: 'sidekick-tool-call-code'});
-			const maxLen = 5000;
-			const displayText = data.summaryContent.length > maxLen ? data.summaryContent.slice(0, maxLen) + '\n… (truncated)' : data.summaryContent;
+			const displayText = data.summaryContent.length > MAX_DEBUG_DISPLAY_LEN ? data.summaryContent.slice(0, MAX_DEBUG_DISPLAY_LEN) + '\n… (truncated)' : data.summaryContent;
 			summaryPre.createEl('code', {text: displayText});
 		}
 
