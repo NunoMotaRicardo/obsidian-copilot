@@ -105,7 +105,7 @@ Sidekick also supports a **Context window (tokens)** setting in **Settings → M
 ## Troubleshooting
 
 **Still getting `invalid message content type: <nil>`?**
-- Verify the override took effect: `ps aux | grep '[l]lama-server' | grep -oP '\-c \d+'` should show the new value.
+- Verify the override took effect: `ps aux | grep '[l]lama-server' | grep -oE '\-c [0-9]+'` should show the new value.
 - Make sure you restarted the correct Ollama instance (the one in WSL, not the Windows tray app).
 - Start a **new chat** in Sidekick (click `+`) — existing sessions cache the old config.
 
