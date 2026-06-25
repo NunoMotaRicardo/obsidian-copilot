@@ -1,7 +1,6 @@
 import {MarkdownView, Menu, Notice, TFile, TFolder, setIcon} from 'obsidian';
 import type {SidekickView} from '../sidekickView';
-import {IMAGE_EXTS, isImageAttachment} from '../types';
-import type {PromptConfig, SelectionInfo} from '../types';
+import {IMAGE_EXTS, isImageAttachment, type PromptConfig, type SelectionInfo} from '../types';
 import {VaultScopeModal} from '../modals/vaultScopeModal';
 
 declare module '../sidekickView' {
