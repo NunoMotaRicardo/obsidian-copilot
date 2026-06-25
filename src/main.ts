@@ -197,7 +197,7 @@ export default class SidekickPlugin extends Plugin {
 		const onListModels = this.buildOnListModels();
 
 		const onVersionInfo = (status: {version: string; protocolVersion: number}) => {
-			console.log('Sidekick: Copilot CLI v%s (protocol %d)', status.version, status.protocolVersion);
+			console.info('Sidekick: Copilot CLI v%s (protocol %d)', status.version, status.protocolVersion);
 		};
 
 		if (s.copilotType === 'remote') {
