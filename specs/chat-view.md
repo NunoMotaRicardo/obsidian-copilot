@@ -80,4 +80,7 @@ vault scope, folder tree.
   (screenshot to blob), and the paperclip attachment button. `buildSdkAttachments()` in
   `sessionConfig.ts` converts `ChatAttachment` items to SDK format using a hybrid strategy:
   on-disk files as `{type: 'file', path}`, clipboard pastes as `{type: 'blob', data, mimeType}`.
+  Verified end-to-end with vision-capable Ollama models. Attachment tag icons correctly
+  distinguish image types: `type: 'blob'` (clipboard paste) and `type: 'file'` with an
+  image extension both display the image icon, matching the existing `type: 'image'` path.
 - Sessions are auto-named `<Agent>: <first message>`; trigger/search sessions are tagged.

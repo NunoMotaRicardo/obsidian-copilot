@@ -44,6 +44,8 @@ export interface SidekickSettings {
 	providerWireApi: 'completions' | 'responses';
 	/** Model name/ID to use with a BYOK provider. */
 	providerModel: string;
+	/** Max prompt tokens for BYOK providers (0 = provider default). Controls SDK-side compaction. */
+	providerMaxPromptTokens: number;
 	/** Persisted form defaults for the Edit modal. */
 	editModalDefaults?: EditModalDefaults;
 	/** Custom display names for sessions, keyed by SDK sessionId. */
@@ -142,6 +144,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	providerBearerToken: '',
 	providerWireApi: 'completions',
 	providerModel: '',
+	providerMaxPromptTokens: 0,
 	reasoningEffort: '',
 	reasoningSummary: '',
 	contextTier: 'default',
@@ -369,6 +372,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 						}).then((result) => {
 							if (result.ok && result.models.length > 0) {
 								populateInlineDropdown(result.models);
+								this.plugin.notifySidebarModelsChanged(result.models);
 								// Pre-select the configured model if present
 								if (this.plugin.settings.providerModel) {
 									const ids = result.models.map(m => m.id);
@@ -387,6 +391,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 				} else if (this.plugin.copilot) {
 					const models: ModelInfo[] = await this.plugin.copilot.listModels();
 					populateInlineDropdown(models);
+					this.plugin.notifySidebarModelsChanged(models);
 				}
 			} catch {
 				// silently ignore — dropdown keeps its placeholder
@@ -640,6 +645,18 @@ export class SidekickSettingTab extends PluginSettingTab {
 						.setValue(this.plugin.settings.providerWireApi)
 						.onChange(async (value) => {
 							this.plugin.settings.providerWireApi = value as 'completions' | 'responses';
+							await this.plugin.saveSettings();
+						}));
+
+				new Setting(providerFieldsEl)
+					.setName('Context window (tokens)')
+					.setDesc('Max prompt tokens before conversation history is compacted. 0 = provider default. For Ollama, also increase num_ctx on the server.')
+					.addText(text => text
+						.setPlaceholder('0')
+						.setValue(this.plugin.settings.providerMaxPromptTokens ? String(this.plugin.settings.providerMaxPromptTokens) : '')
+						.onChange(async (value) => {
+							const n = parseInt(value.trim(), 10);
+							this.plugin.settings.providerMaxPromptTokens = (Number.isFinite(n) && n > 0) ? n : 0;
 							await this.plugin.saveSettings();
 						}));
 			}

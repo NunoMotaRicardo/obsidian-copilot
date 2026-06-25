@@ -87,8 +87,19 @@ export interface SelectionInfo {
 	endChar: number;
 }
 
-/** Image file extensions supported for attachment. */
-export const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
+/** Image file extensions recognized for icon display, drag-drop handling, and attachment. */
+export const IMAGE_EXTS: ReadonlySet<string> = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg']);
+
+/** Check whether an attachment represents an image (for icon rendering). */
+export function isImageAttachment(att: Pick<ChatAttachment, 'type' | 'name' | 'mimeType'>): boolean {
+	if (att.type === 'image') return true;
+	if (att.type === 'blob') return !!att.mimeType?.startsWith('image/');
+	if (att.type === 'file' && att.name) {
+		const ext = att.name.split('.').pop()?.toLowerCase() ?? '';
+		return IMAGE_EXTS.has(ext);
+	}
+	return false;
+}
 
 /** Parsed trigger configuration from *.trigger.md. */
 export interface TriggerConfig {
