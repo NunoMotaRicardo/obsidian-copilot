@@ -132,8 +132,8 @@ export class CopilotService {
 				// Must not block or break the connect path on failure.
 				this.client.getStatus().then((status) => {
 					this.versionInfo = status;
-					const path = this.resolvedCliPath?.path ?? 'unknown';
-					this.onVersionInfo?.(status, path);
+					const resolvedTarget = this.resolvedCliPath?.path ?? this.cliPath ?? this.cliUrl ?? 'unknown';
+					this.onVersionInfo?.(status, resolvedTarget);
 				}).catch(() => { /* version info is best-effort */ });
 			} catch (e) {
 				this.state = 'error';
