@@ -262,6 +262,7 @@ export default class SidekickPlugin extends Plugin {
 			...(s.providerApiKey ? {apiKey: s.providerApiKey} : {}),
 			...(s.providerBearerToken ? {bearerToken: s.providerBearerToken} : {}),
 			wireApi: s.providerWireApi,
+			...(s.providerMaxPromptTokens > 0 ? {maxPromptTokens: s.providerMaxPromptTokens} : {}),
 		};
 	}
 
@@ -308,6 +309,15 @@ export default class SidekickPlugin extends Plugin {
 	disconnectTelegram(): void {
 		if (this.telegramBot) {
 			this.telegramBot.disconnect();
+		}
+	}
+
+	notifySidebarModelsChanged(models: import('./copilot').ModelInfo[]): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(SIDEKICK_VIEW_TYPE)) {
+			const view = leaf.view;
+			if (view instanceof SidekickView) {
+				view.refreshProviderModels(models);
+			}
 		}
 	}
 

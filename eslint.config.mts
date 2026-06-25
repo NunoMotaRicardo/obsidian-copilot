@@ -6,7 +6,7 @@ import { globalIgnores } from "eslint/config";
 const ALLOWED_UPPERCASE = new Set([
 	'Sidekick', 'Copilot', 'Markdown', 'GitHub', 'URL', 'API', 'LLM',
 	'MCP', 'CLI', 'JSON', 'YAML', 'HTML', 'CSS', 'UI', 'ID',
-	'Settings', 'Community', 'Enter',
+	'Settings', 'Community', 'Enter', 'Ollama',
 ]);
 
 /**

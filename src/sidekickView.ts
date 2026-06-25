@@ -428,6 +428,20 @@ export class SidekickView extends ItemView {
 		}
 	}
 
+	refreshProviderModels(models: ModelInfo[]): void {
+		this.models = models;
+		const currentModel = this.plugin.settings.providerModel;
+		if (currentModel && models.some(m => m.id === currentModel)) {
+			this.selectedModel = currentModel;
+		} else if (models.length > 0 && models[0]) {
+			this.selectedModel = models[0].id;
+		}
+		this.populateModelSelect();
+		if (this.selectedModel) {
+			this.modelSelect.value = this.selectedModel;
+		}
+	}
+
 	registerConfigFileWatcher(): void {
 		const DEBOUNCE_MS = 500;
 
