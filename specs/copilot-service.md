@@ -45,6 +45,24 @@ Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin
 | `onUserInputRequest`, `onElicitationRequest` | modals |
 | `provider` | BYOK settings |
 
+## Version info callback (#15)
+
+After a successful connect in `ensureConnected()`, the service calls `client.getStatus()`
+fire-and-forget (try/catch — must not block or break the connect path). If it succeeds, the
+service caches the `GetStatusResponse` and fires the `onVersionInfo` constructor callback:
+
+```
+onVersionInfo?: (status: {version: string; protocolVersion: number}, resolvedPath: string) => void
+```
+
+This follows the same constructor callback pattern as `onListModels`. `main.ts` wires it to
+log `Sidekick: Copilot CLI v%s (protocol %d)` to console. The settings UI reads the cached
+version info from the service (`getVersionInfo()`) to display it alongside the resolved
+binary path.
+
+The SDK already checks protocol mismatch during `client.start()` and throws — so there is no
+separate mismatch Notice on successful connect. `getStatus()` is purely informational.
+
 ## Invariants
 
 - No other module imports `@github/copilot-sdk` directly (modals import types only — keep

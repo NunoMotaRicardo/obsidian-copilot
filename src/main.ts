@@ -161,8 +161,23 @@ export default class SidekickPlugin extends Plugin {
 
 		try {
 			await this.initCopilot();
+			// Eagerly connect so CLI-not-found errors surface at startup
+			// (triggers getStatus → version log as a side-effect).
+			if (this.copilot) {
+				await this.copilot.ensureConnected();
+			}
 		} catch (e) {
 			console.error('Sidekick: failed to initialize Copilot service', e);
+			const msg = e instanceof Error ? e.message : String(e);
+			// Show a platform-specific install guidance Notice when the CLI
+			// could not be found or started.
+			if (/copilot cli|enoent|spawn/i.test(msg)) {
+				const isWin = typeof process !== 'undefined' && process.platform === 'win32';
+				const installHint = isWin
+					? 'No Copilot CLI found. Install with `winget install GitHub.CopilotCLI` or `npm install -g @github/copilot`, then restart the plugin.'
+					: 'No Copilot CLI found. Install with `npm install -g @github/copilot`, then restart the plugin.';
+				new Notice(installHint, 30000);
+			}
 		}
 	}
 
@@ -181,12 +196,17 @@ export default class SidekickPlugin extends Plugin {
 		// models from the provider endpoint so client.listModels() returns them.
 		const onListModels = this.buildOnListModels();
 
+		const onVersionInfo = (status: {version: string; protocolVersion: number}) => {
+			console.log('Sidekick: Copilot CLI v%s (protocol %d)', status.version, status.protocolVersion);
+		};
+
 		if (s.copilotType === 'remote') {
 			const url = s.cliUrl.trim();
 			this.copilot = new CopilotService({
 				cliUrl: url || undefined,
 				githubToken: s.githubToken || undefined,
 				...(onListModels ? {onListModels} : {}),
+				onVersionInfo,
 			});
 		} else {
 			const loc = s.copilotLocation.trim();
@@ -194,24 +214,10 @@ export default class SidekickPlugin extends Plugin {
 				cliPath: loc.length > 0 ? loc : undefined,
 				useLoggedInUser: s.useLoggedInUser,
 				githubToken: !s.useLoggedInUser && s.githubToken ? s.githubToken : undefined,
-				pluginBinDir: this.getPluginBinDir(),
 				...(onListModels ? {onListModels} : {}),
+				onVersionInfo,
 			});
 		}
-	}
-
-	/**
-	 * Absolute path to the plugin-managed `bin/` directory
-	 * (`<vault>/.obsidian/plugins/sidekick/bin`), the home for a future
-	 * downloaded Copilot runtime. Resolved from the vault adapter `basePath`,
-	 * the vault `configDir` and this plugin's `manifest.id` so runtime-manager
-	 * stays testable rather than deriving paths from `__dirname`. Returns
-	 * `undefined` when no filesystem base path is available (e.g. mobile).
-	 */
-	getPluginBinDir(): string | undefined {
-		const basePath = (this.app.vault.adapter as unknown as {basePath?: string}).basePath;
-		if (!basePath) return undefined;
-		return [basePath, this.app.vault.configDir, 'plugins', this.manifest.id, 'bin'].join('/');
 	}
 
 	/**

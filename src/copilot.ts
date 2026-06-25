@@ -6,6 +6,7 @@ import type {
 	SessionMetadata,
 	SessionListFilter,
 	GetAuthStatusResponse,
+	GetStatusResponse,
 	AssistantMessageEvent,
 	MCPServerConfig,
 	MCPHTTPServerConfig,
@@ -49,8 +50,9 @@ export class CopilotService {
 	private readonly githubToken: string | undefined;
 	private readonly useLoggedInUser: boolean | undefined;
 	private readonly onListModels: (() => Promise<ModelInfo[]> | ModelInfo[]) | undefined;
-	private readonly pluginBinDir: string | undefined;
+	private readonly onVersionInfo: ((status: GetStatusResponse, resolvedPath: string) => void) | undefined;
 	private resolvedCliPath: ResolvedCliPath | null = null;
+	private versionInfo: GetStatusResponse | null = null;
 
 	constructor(opts?: {
 		cliPath?: string;
@@ -58,19 +60,14 @@ export class CopilotService {
 		githubToken?: string;
 		useLoggedInUser?: boolean;
 		onListModels?: () => Promise<ModelInfo[]> | ModelInfo[];
-		/**
-		 * Absolute path to the plugin-managed `bin/` directory, supplied by the
-		 * caller (which has Obsidian vault access). Added to the resolution
-		 * chain so a future downloaded runtime can be found there.
-		 */
-		pluginBinDir?: string;
+		onVersionInfo?: (status: GetStatusResponse, resolvedPath: string) => void;
 	}) {
 		this.cliPath = opts?.cliPath;
 		this.cliUrl = opts?.cliUrl;
 		this.githubToken = opts?.githubToken;
 		this.useLoggedInUser = opts?.useLoggedInUser;
 		this.onListModels = opts?.onListModels;
-		this.pluginBinDir = opts?.pluginBinDir;
+		this.onVersionInfo = opts?.onVersionInfo;
 	}
 
 	private state: ConnectionState = 'disconnected';
@@ -91,7 +88,7 @@ export class CopilotService {
 			cliPath = this.cliPath;
 			this.resolvedCliPath = {path: this.cliPath, source: 'settings'};
 		} else {
-			this.resolvedCliPath = await resolveDefaultCliPath({pluginBinDir: this.pluginBinDir});
+			this.resolvedCliPath = await resolveDefaultCliPath();
 			cliPath = this.resolvedCliPath.path;
 		}
 		const os = nodeRequire?.('node:os') as typeof import('node:os') ?? await import('node:os');
@@ -131,6 +128,13 @@ export class CopilotService {
 			try {
 				await this.client.start();
 				this.state = 'connected';
+				// Fire-and-forget: query CLI version info for logging/display.
+				// Must not block or break the connect path on failure.
+				this.client.getStatus().then((status) => {
+					this.versionInfo = status;
+					const path = this.resolvedCliPath?.path ?? 'unknown';
+					this.onVersionInfo?.(status, path);
+				}).catch(() => { /* version info is best-effort */ });
 			} catch (e) {
 				this.state = 'error';
 				const detail = e instanceof Error ? e.message : String(e);
@@ -157,6 +161,11 @@ export class CopilotService {
 		return this.client ? this.state : 'disconnected';
 	}
 
+	/** Cached CLI version info from `getStatus()`, or null if not yet retrieved. */
+	getVersionInfo(): GetStatusResponse | null {
+		return this.versionInfo;
+	}
+
 	/**
 	 * Resolve the CLI binary path that would be used for a local connection,
 	 * together with which step of the resolution chain it came from. Returns
@@ -170,7 +179,7 @@ export class CopilotService {
 			this.resolvedCliPath = {path: this.cliPath, source: 'settings'};
 			return this.resolvedCliPath;
 		}
-		this.resolvedCliPath = await resolveDefaultCliPath({pluginBinDir: this.pluginBinDir});
+		this.resolvedCliPath = await resolveDefaultCliPath();
 		return this.resolvedCliPath;
 	}
 
@@ -379,6 +388,7 @@ export type {
 	ModelInfo,
 	SessionMetadata,
 	GetAuthStatusResponse,
+	GetStatusResponse,
 	CustomAgentConfig,
 	AssistantMessageEvent,
 	SessionConfig,
