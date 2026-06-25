@@ -588,7 +588,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 						populateModelDatalist([]);
 						// Auto-fetch model list in background when settings open
 						if (this.plugin.settings.providerBaseUrl) {
-							fetchProviderModels({
+							void fetchProviderModels({
 								preset: this.plugin.settings.providerPreset as ByokProviderPreset,
 								baseUrl: this.plugin.settings.providerBaseUrl,
 								apiKey: this.plugin.settings.providerApiKey,
