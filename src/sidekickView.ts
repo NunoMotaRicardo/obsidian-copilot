@@ -393,7 +393,7 @@ export class SidekickView extends ItemView {
 					}
 					// Background fetch: populate full list from provider
 					if (this.plugin.settings.providerBaseUrl) {
-						fetchProviderModels({
+					void fetchProviderModels({
 							preset: preset as ByokProviderPreset,
 							baseUrl: this.plugin.settings.providerBaseUrl,
 							apiKey: this.plugin.settings.providerApiKey,
