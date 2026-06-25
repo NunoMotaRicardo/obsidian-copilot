@@ -4,6 +4,7 @@ import type {ModelInfo, ContextTier} from "./copilot";
 import type {McpInputVariable} from "./types";
 import {loadMcpInputs, loadAgents} from "./configLoader";
 import {fetchProviderModels} from "./providerModels";
+import type {ByokProviderPreset} from "./providerModels";
 
 const DEFAULT_COPILOT_LOCATION = '';
 
@@ -335,13 +336,47 @@ export class SidekickSettingTab extends PluginSettingTab {
 			try {
 				const preset = this.plugin.settings.providerPreset;
 				const isByok = preset !== 'github';
-				if (isByok && this.plugin.settings.providerModel) {
-					const id = this.plugin.settings.providerModel;
-					this.plugin.settings.inlineModel = id;
-					await this.plugin.saveSettings();
-					populateInlineDropdown([{id, name: id} as ModelInfo]);
-				} else if (isByok) {
-					populateInlineDropdown([]);
+				if (isByok) {
+					// Synchronous first: populate the dropdown immediately with the
+					// configured model so the UI renders instantly without waiting
+					// for a network call (which may hang if e.g. Ollama is down).
+					const initialModels: ModelInfo[] = [];
+					if (this.plugin.settings.providerModel) {
+						const id = this.plugin.settings.providerModel;
+						initialModels.push({id, name: id} as ModelInfo);
+						this.plugin.settings.inlineModel = id;
+						await this.plugin.saveSettings();
+					}
+					populateInlineDropdown(initialModels);
+
+					// Background fetch: try to get the full model list from the
+					// provider. If it succeeds, update the dropdown. If it fails
+					// (e.g. provider not running), the dropdown keeps the
+					// configured model from above.
+					if (this.plugin.settings.providerBaseUrl) {
+						void fetchProviderModels({
+							preset: preset as Parameters<typeof fetchProviderModels>[0]['preset'],
+							baseUrl: this.plugin.settings.providerBaseUrl,
+							apiKey: this.plugin.settings.providerApiKey,
+							bearerToken: this.plugin.settings.providerBearerToken,
+						}).then((result) => {
+							if (result.ok && result.models.length > 0) {
+								populateInlineDropdown(result.models);
+								// Pre-select the configured model if present
+								if (this.plugin.settings.providerModel) {
+									const ids = result.models.map(m => m.id);
+									if (ids.includes(this.plugin.settings.providerModel)) {
+										this.plugin.settings.inlineModel = this.plugin.settings.providerModel;
+									} else if (result.models[0]) {
+										this.plugin.settings.inlineModel = result.models[0].id;
+									}
+									void this.plugin.saveSettings();
+								}
+							}
+						}).catch(() => {
+							// silently ignore — dropdown keeps the configured model
+						});
+					}
 				} else if (this.plugin.copilot) {
 					const models: ModelInfo[] = await this.plugin.copilot.listModels();
 					populateInlineDropdown(models);
@@ -550,8 +585,20 @@ export class SidekickSettingTab extends PluginSettingTab {
 							});
 						text.inputEl.setAttribute('list', MODEL_DATALIST_ID);
 						modelDatalistEl = (text.inputEl.parentElement ?? providerFieldsEl).createEl('datalist', {attr: {id: MODEL_DATALIST_ID}});
-						// Avoid stale suggestions when switching presets; repopulate only after a successful Test.
 						populateModelDatalist([]);
+						// Auto-fetch model list in background when settings open
+						if (this.plugin.settings.providerBaseUrl) {
+							void fetchProviderModels({
+								preset: this.plugin.settings.providerPreset as ByokProviderPreset,
+								baseUrl: this.plugin.settings.providerBaseUrl,
+								apiKey: this.plugin.settings.providerApiKey,
+								bearerToken: this.plugin.settings.providerBearerToken,
+							}).then(result => {
+								if (result.ok && result.models.length > 0) {
+									populateModelDatalist(result.models);
+								}
+							}).catch(() => { /* keep empty — user can click Test */ });
+						}
 					});
 
 				new Setting(providerFieldsEl)
@@ -617,6 +664,10 @@ export class SidekickSettingTab extends PluginSettingTab {
 						this.plugin.settings.providerBaseUrl = '';
 					}
 					this.plugin.settings.providerWireApi = defaults?.wireApi ?? 'completions';
+					if (newPreset === 'github') {
+						this.plugin.settings.providerModel = '';
+						this.plugin.settings.inlineModel = '';
+					}
 					await this.plugin.saveSettings();
 					rebuildProviderFields();
 					await refreshModels();
@@ -634,7 +685,6 @@ export class SidekickSettingTab extends PluginSettingTab {
 							}
 							const testSession = await this.plugin.copilot.createSession({
 								onPermissionRequest: () => ({allow: false, kind: 'denied-interactively-by-user' as const}),
-								...(this.plugin.settings.providerModel ? {model: this.plugin.settings.providerModel} : {}),
 							});
 							await testSession.disconnect();
 							new Notice('Provider session created successfully.');

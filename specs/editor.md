@@ -17,7 +17,10 @@ file-explorer image actions (`extractImageContent()`, `convertToMermaidBelow()`)
 duplicating.
 
 - Quick actions replace text in place using the **inline operations model** via
-  `CopilotService.chat()` (ephemeral session, `approveAll`).
+  `CopilotService.chat()` (ephemeral session, `approveAll`). When a BYOK provider is active,
+  `chat()` and `inlineChat()` auto-inject the `provider` config (type, baseUrl, apiKey,
+  bearerToken, wireApi) and `streaming` flag, so inline actions work with non-GitHub providers
+  (Ollama, Foundry Local, OpenAI, Azure, Anthropic, etc.) without any additional wiring (#25).
 - The Edit modal offers task/tone/format/length/choices controls and N alternatives.
 
 ## Ghost text (`ghostText.ts`)
