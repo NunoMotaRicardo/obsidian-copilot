@@ -182,16 +182,6 @@ export class CopilotService {
 		return this.versionInfo;
 	}
 
-	/** The BYOK provider config, if set. */
-	getProvider(): ProviderConfig | undefined {
-		return this.provider;
-	}
-
-	/** The provider preset name (e.g. 'ollama', 'foundry-local'), if set. */
-	getProviderPreset(): string | undefined {
-		return this.providerPreset;
-	}
-
 	/**
 	 * Resolve the CLI binary path that would be used for a local connection,
 	 * together with which step of the resolution chain it came from. Returns
@@ -385,11 +375,13 @@ export class CopilotService {
 
 	/**
 	 * Detect connection/network errors (ECONNREFUSED, ENOTFOUND, fetch failures)
-	 * that indicate the provider is unreachable.
+	 * that indicate the provider is unreachable. Avoids bare 'connect' which
+	 * would false-positive on CLI spawn errors ("Could not connect to the
+	 * Copilot CLI (spawn ENOENT)") or SDK session messages.
 	 */
 	private isConnectionError(error: Error): boolean {
 		const msg = error.message.toLowerCase();
-		return /econnrefused|enotfound|fetch failed|network|connect|socket hang up|ehostunreach|etimedout/.test(msg);
+		return /econnrefused|enotfound|etimedout|econnreset|ehostunreach|fetch failed|network|socket hang up/.test(msg);
 	}
 
 	// ── Health ───────────────────────────────────────────────────────

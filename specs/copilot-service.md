@@ -83,8 +83,13 @@ separate mismatch Notice on successful connect. `getStatus()` is purely informat
 ## Ollama connection error handling (#25)
 
 When the `ollama` preset is active and a `chat()` or `inlineChat()` call fails with a
-connection/network error (ECONNREFUSED, fetch failed, etc.), the service fires its
-`onConnectionError` callback. `main.ts` wires this to an Obsidian `Notice` (8 seconds):
+connection/network error, the service fires its `onConnectionError` callback. Detection uses
+`isConnectionError()` which matches: `ECONNREFUSED`, `ENOTFOUND`, `ETIMEDOUT`, `ECONNRESET`,
+`EHOSTUNREACH`, `fetch failed`, `network`, `socket hang up`. It intentionally avoids matching
+bare `connect` — that would false-positive on CLI spawn errors ("Could not connect to the
+Copilot CLI (spawn ENOENT)") or SDK session messages ("disconnect failed").
+
+`main.ts` wires this to an Obsidian `Notice` (8 seconds):
 
 > Could not reach Ollama at localhost:11434. Is it running? Start it with `ollama serve`.
 
@@ -92,6 +97,12 @@ Text-only — no retry button, no auto-retry. The existing Settings > Models **T
 is the manual retry path. The `onConnectionError` callback pattern keeps `CopilotService`
 free of `obsidian` imports. Broader Ollama UX polish including capability detection is
 tracked in issue #30.
+
+## Public API surface
+
+The `provider`, `providerPreset`, and `providerStreaming` fields are private — consumed only
+internally by `chat()` and `inlineChat()`. No public getters are exposed for them; callers
+that need provider config (e.g. `buildSessionConfig`) receive it directly from `main.ts`.
 
 ## Invariants
 
