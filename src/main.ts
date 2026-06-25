@@ -169,9 +169,9 @@ export default class SidekickPlugin extends Plugin {
 		} catch (e) {
 			console.error('Sidekick: failed to initialize Copilot service', e);
 			const msg = e instanceof Error ? e.message : String(e);
-			// Show a platform-specific install guidance Notice when the CLI
-			// could not be found or started.
-			if (/copilot cli|enoent|spawn/i.test(msg)) {
+			// Try to detect "missing CLI" specifically (spawn ENOENT / not found), not any CLI error.
+			const detail = msg.match(/\(([^)]*)\)\./)?.[1] ?? msg;
+			if (/enoent|spawn|not found/i.test(detail)) {
 				const isWin = typeof process !== 'undefined' && process.platform === 'win32';
 				const installHint = isWin
 					? 'No Copilot CLI found. Install with `winget install GitHub.CopilotCLI` or `npm install -g @github/copilot`, then restart the plugin.'
