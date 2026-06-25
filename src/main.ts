@@ -201,13 +201,32 @@ export default class SidekickPlugin extends Plugin {
 			console.info('Sidekick: Copilot CLI v%s (protocol %d)', status.version, status.protocolVersion);
 		};
 
+		// Build BYOK provider config for inline/editor operations
+		const providerConfig = this.buildProviderConfig();
+
+		// Ollama-specific connection error notice
+		const ollamaErrorMsg = 'Could not reach Ollama at localhost:11434. ' +
+			'Is it running? Start it with `ollama serve`.';
+		const onConnectionError = s.providerPreset === 'ollama'
+			? () => { new Notice(ollamaErrorMsg, 8000); }
+			: undefined;
+
+		const providerOpts = {
+			...(onListModels ? {onListModels} : {}),
+			onVersionInfo,
+			...(onConnectionError ? {onConnectionError} : {}),
+			...(providerConfig ? {provider: providerConfig} : {}),
+			...(s.providerPreset !== 'github' ? {providerPreset: s.providerPreset} : {}),
+			// foundry-local requires non-streaming mode
+			...(s.providerPreset === 'foundry-local' ? {streaming: false} : {}),
+		};
+
 		if (s.copilotType === 'remote') {
 			const url = s.cliUrl.trim();
 			this.copilot = new CopilotService({
 				cliUrl: url || undefined,
 				githubToken: s.githubToken || undefined,
-				...(onListModels ? {onListModels} : {}),
-				onVersionInfo,
+				...providerOpts,
 			});
 		} else {
 			const loc = s.copilotLocation.trim();
@@ -215,10 +234,36 @@ export default class SidekickPlugin extends Plugin {
 				cliPath: loc.length > 0 ? loc : undefined,
 				useLoggedInUser: s.useLoggedInUser,
 				githubToken: !s.useLoggedInUser && s.githubToken ? s.githubToken : undefined,
-				...(onListModels ? {onListModels} : {}),
-				onVersionInfo,
+				...providerOpts,
 			});
 		}
+	}
+
+	/**
+	 * Build the BYOK ProviderConfig from current settings, or undefined for
+	 * the GitHub preset. Used by both CopilotService (for inline operations)
+	 * and buildSessionConfig (for the chat panel).
+	 */
+	buildProviderConfig(): import('./copilot').ProviderConfig | undefined {
+		const s = this.settings;
+		if (s.providerPreset === 'github' || !s.providerBaseUrl) return undefined;
+
+		const typeMap: Record<string, 'openai' | 'azure' | 'anthropic'> = {
+			openai: 'openai',
+			azure: 'azure',
+			anthropic: 'anthropic',
+			ollama: 'openai',
+			'foundry-local': 'openai',
+			'other-openai': 'openai',
+		};
+
+		return {
+			type: typeMap[s.providerPreset] ?? 'openai',
+			baseUrl: s.providerBaseUrl,
+			...(s.providerApiKey ? {apiKey: s.providerApiKey} : {}),
+			...(s.providerBearerToken ? {bearerToken: s.providerBearerToken} : {}),
+			wireApi: s.providerWireApi,
+		};
 	}
 
 	/**

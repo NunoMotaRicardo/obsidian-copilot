@@ -946,26 +946,9 @@ export class SidekickView extends ItemView {
 			return modal.promise;
 		};
 
-		// Build BYOK provider config if a non-GitHub preset is selected
+		// BYOK provider config — shared with CopilotService (built once in main.ts)
 		const providerPreset = this.plugin.settings.providerPreset;
-		let provider: ProviderConfig | undefined;
-		if (providerPreset !== 'github' && this.plugin.settings.providerBaseUrl) {
-			const typeMap: Record<string, 'openai' | 'azure' | 'anthropic'> = {
-				openai: 'openai',
-				azure: 'azure',
-				anthropic: 'anthropic',
-				ollama: 'openai',
-				'foundry-local': 'openai',
-				'other-openai': 'openai',
-			};
-			provider = {
-				type: typeMap[providerPreset] ?? 'openai',
-				baseUrl: this.plugin.settings.providerBaseUrl,
-				...(this.plugin.settings.providerApiKey ? {apiKey: this.plugin.settings.providerApiKey} : {}),
-				...(this.plugin.settings.providerBearerToken ? {bearerToken: this.plugin.settings.providerBearerToken} : {}),
-				wireApi: this.plugin.settings.providerWireApi,
-			};
-		}
+		const provider: ProviderConfig | undefined = this.plugin.buildProviderConfig();
 
 		const reasoningEffort = this.plugin.settings.reasoningEffort;
 		const reasoningSummary = this.plugin.settings.reasoningSummary;

@@ -335,13 +335,36 @@ export class SidekickSettingTab extends PluginSettingTab {
 			try {
 				const preset = this.plugin.settings.providerPreset;
 				const isByok = preset !== 'github';
-				if (isByok && this.plugin.settings.providerModel) {
-					const id = this.plugin.settings.providerModel;
-					this.plugin.settings.inlineModel = id;
-					await this.plugin.saveSettings();
-					populateInlineDropdown([{id, name: id} as ModelInfo]);
-				} else if (isByok) {
-					populateInlineDropdown([]);
+				if (isByok) {
+					// Attempt to fetch all models from the BYOK provider
+					let models: ModelInfo[] = [];
+					if (this.plugin.settings.providerBaseUrl) {
+						const result = await fetchProviderModels({
+							preset: preset as Parameters<typeof fetchProviderModels>[0]['preset'],
+							baseUrl: this.plugin.settings.providerBaseUrl,
+							apiKey: this.plugin.settings.providerApiKey,
+							bearerToken: this.plugin.settings.providerBearerToken,
+						});
+						if (result.ok) {
+							models = result.models;
+						}
+					}
+					// Fall back to the single configured model if fetch failed or returned nothing
+					if (models.length === 0 && this.plugin.settings.providerModel) {
+						const id = this.plugin.settings.providerModel;
+						models = [{id, name: id} as ModelInfo];
+					}
+					// Pre-select the configured providerModel for inline operations
+					if (this.plugin.settings.providerModel) {
+						const ids = models.map(m => m.id);
+						if (ids.includes(this.plugin.settings.providerModel)) {
+							this.plugin.settings.inlineModel = this.plugin.settings.providerModel;
+						} else if (models.length > 0 && models[0]) {
+							this.plugin.settings.inlineModel = models[0].id;
+						}
+						await this.plugin.saveSettings();
+					}
+					populateInlineDropdown(models);
 				} else if (this.plugin.copilot) {
 					const models: ModelInfo[] = await this.plugin.copilot.listModels();
 					populateInlineDropdown(models);

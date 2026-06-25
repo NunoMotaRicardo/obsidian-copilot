@@ -51,6 +51,10 @@ export class CopilotService {
 	private readonly useLoggedInUser: boolean | undefined;
 	private readonly onListModels: (() => Promise<ModelInfo[]> | ModelInfo[]) | undefined;
 	private readonly onVersionInfo: ((status: GetStatusResponse, resolvedPath: string) => void) | undefined;
+	private readonly onConnectionError: ((error: Error) => void) | undefined;
+	private readonly provider: ProviderConfig | undefined;
+	private readonly providerPreset: string | undefined;
+	private readonly providerStreaming: boolean | undefined;
 	private resolvedCliPath: ResolvedCliPath | null = null;
 	private versionInfo: GetStatusResponse | null = null;
 
@@ -61,6 +65,14 @@ export class CopilotService {
 		useLoggedInUser?: boolean;
 		onListModels?: () => Promise<ModelInfo[]> | ModelInfo[];
 		onVersionInfo?: (status: GetStatusResponse, resolvedPath: string) => void;
+		/** Callback for connection/network errors (e.g. Ollama not running). */
+		onConnectionError?: (error: Error) => void;
+		/** BYOK provider config injected into all sessions created by chat()/inlineChat(). */
+		provider?: ProviderConfig;
+		/** Provider preset name (e.g. 'ollama', 'foundry-local') for error detection. */
+		providerPreset?: string;
+		/** Explicit streaming override; when false, sessions use non-streaming mode. */
+		streaming?: boolean;
 	}) {
 		this.cliPath = opts?.cliPath;
 		this.cliUrl = opts?.cliUrl;
@@ -68,6 +80,10 @@ export class CopilotService {
 		this.useLoggedInUser = opts?.useLoggedInUser;
 		this.onListModels = opts?.onListModels;
 		this.onVersionInfo = opts?.onVersionInfo;
+		this.onConnectionError = opts?.onConnectionError;
+		this.provider = opts?.provider;
+		this.providerPreset = opts?.providerPreset;
+		this.providerStreaming = opts?.streaming;
 	}
 
 	private state: ConnectionState = 'disconnected';
@@ -164,6 +180,16 @@ export class CopilotService {
 	/** Cached CLI version info from `getStatus()`, or null if not yet retrieved. */
 	getVersionInfo(): GetStatusResponse | null {
 		return this.versionInfo;
+	}
+
+	/** The BYOK provider config, if set. */
+	getProvider(): ProviderConfig | undefined {
+		return this.provider;
+	}
+
+	/** The provider preset name (e.g. 'ollama', 'foundry-local'), if set. */
+	getProviderPreset(): string | undefined {
+		return this.providerPreset;
 	}
 
 	/**
@@ -271,27 +297,36 @@ export class CopilotService {
 		onElicitationRequest?: ElicitationHandler;
 		attachments?: MessageOptions['attachments'];
 	}): Promise<string | undefined> {
-		const session = await this.createSession({
-			model: options.model,
-			agent: options.agent,
-			onPermissionRequest: options.onPermissionRequest ?? approveAll,
-			...(options.onUserInputRequest ? {onUserInputRequest: options.onUserInputRequest} : {}),
-			...(options.onElicitationRequest ? {onElicitationRequest: options.onElicitationRequest} : {}),
-			customAgents: options.customAgents,
-			...(options.agent ? {agent: options.agent} : {}),
-			...(options.systemMessage
-				? {systemMessage: {content: options.systemMessage}}
-				: {}),
-		});
 		try {
-			const response: AssistantMessageEvent | undefined =
-				await session.sendAndWait({
-					prompt: options.prompt,
-					...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
-				});
-			return response?.data.content;
-		} finally {
-			await session.disconnect();
+			const session = await this.createSession({
+				model: options.model,
+				agent: options.agent,
+				onPermissionRequest: options.onPermissionRequest ?? approveAll,
+				...(options.onUserInputRequest ? {onUserInputRequest: options.onUserInputRequest} : {}),
+				...(options.onElicitationRequest ? {onElicitationRequest: options.onElicitationRequest} : {}),
+				customAgents: options.customAgents,
+				...(options.agent ? {agent: options.agent} : {}),
+				...(options.systemMessage
+					? {systemMessage: {content: options.systemMessage}}
+					: {}),
+				...(this.provider ? {provider: this.provider} : {}),
+				...(this.providerStreaming !== undefined ? {streaming: this.providerStreaming} : {}),
+			});
+			try {
+				const response: AssistantMessageEvent | undefined =
+					await session.sendAndWait({
+						prompt: options.prompt,
+						...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
+					});
+				return response?.data.content;
+			} finally {
+				await session.disconnect();
+			}
+		} catch (e) {
+			if (this.onConnectionError && e instanceof Error && this.isConnectionError(e)) {
+				this.onConnectionError(e);
+			}
+			throw e;
 		}
 	}
 
@@ -315,26 +350,46 @@ export class CopilotService {
 		onElicitationRequest?: ElicitationHandler;
 		attachments?: MessageOptions['attachments'];
 	}): Promise<{content: string | undefined; sessionId: string}> {
-		const session = await this.createSession({
-			model: options.model,
-			agent: options.agent,
-			onPermissionRequest: options.onPermissionRequest ?? approveAll,
-			...(options.onUserInputRequest ? {onUserInputRequest: options.onUserInputRequest} : {}),
-			...(options.onElicitationRequest ? {onElicitationRequest: options.onElicitationRequest} : {}),
-			customAgents: options.customAgents,
-			...(options.agent ? {agent: options.agent} : {}),
-			...(options.skillDirectories && options.skillDirectories.length > 0 ? {skillDirectories: options.skillDirectories} : {}),
-			...(options.disabledSkills && options.disabledSkills.length > 0 ? {disabledSkills: options.disabledSkills} : {}),
-			...(options.systemMessage
-				? {systemMessage: {content: options.systemMessage}}
-				: {}),
-		});
-		const response: AssistantMessageEvent | undefined =
-			await session.sendAndWait({
-				prompt: options.prompt,
-				...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
+		try {
+			const session = await this.createSession({
+				model: options.model,
+				agent: options.agent,
+				onPermissionRequest: options.onPermissionRequest ?? approveAll,
+				...(options.onUserInputRequest ? {onUserInputRequest: options.onUserInputRequest} : {}),
+				...(options.onElicitationRequest ? {onElicitationRequest: options.onElicitationRequest} : {}),
+				customAgents: options.customAgents,
+				...(options.agent ? {agent: options.agent} : {}),
+				...(options.skillDirectories && options.skillDirectories.length > 0 ? {skillDirectories: options.skillDirectories} : {}),
+				...(options.disabledSkills && options.disabledSkills.length > 0 ? {disabledSkills: options.disabledSkills} : {}),
+				...(options.systemMessage
+					? {systemMessage: {content: options.systemMessage}}
+					: {}),
+				...(this.provider ? {provider: this.provider} : {}),
+				...(this.providerStreaming !== undefined ? {streaming: this.providerStreaming} : {}),
 			});
-		return {content: response?.data.content, sessionId: session.sessionId};
+			const response: AssistantMessageEvent | undefined =
+				await session.sendAndWait({
+					prompt: options.prompt,
+					...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
+				});
+			return {content: response?.data.content, sessionId: session.sessionId};
+		} catch (e) {
+			if (this.onConnectionError && e instanceof Error && this.isConnectionError(e)) {
+				this.onConnectionError(e);
+			}
+			throw e;
+		}
+	}
+
+	// ── Error detection ────────────────────────────────────────────
+
+	/**
+	 * Detect connection/network errors (ECONNREFUSED, ENOTFOUND, fetch failures)
+	 * that indicate the provider is unreachable.
+	 */
+	private isConnectionError(error: Error): boolean {
+		const msg = error.message.toLowerCase();
+		return /econnrefused|enotfound|fetch failed|network|connect|socket hang up|ehostunreach|etimedout/.test(msg);
 	}
 
 	// ── Health ───────────────────────────────────────────────────────

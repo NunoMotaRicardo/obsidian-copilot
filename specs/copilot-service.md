@@ -28,6 +28,22 @@ Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin
 - Message history: `session.getEvents()` (was `getMessages()`).
 - MCP config types: `MCPServerConfig = MCPStdioServerConfig | MCPHTTPServerConfig`.
 
+## BYOK provider injection (#25)
+
+When a non-GitHub provider preset is active, `CopilotService` receives `provider` (a
+`ProviderConfig`), `providerPreset`, and optionally `streaming` at construction time (set in
+`main.ts` from settings via `buildProviderConfig()`). Both `chat()` and `inlineChat()` auto-
+inject `provider` and `streaming` into their `createSession()` calls so that **all** inline/
+editor operations (rewrite, edit, structure, image extraction, ghost text, etc.) route through
+the BYOK endpoint — not just the chat panel.
+
+`buildProviderConfig()` is a shared method on `SidekickPlugin` (`main.ts`) used by both the
+service constructor and `buildSessionConfig()` in `sidekickView.ts`, eliminating the previous
+duplication of the `typeMap` and provider-config assembly.
+
+The `streaming` flag is set to `false` for the `foundry-local` preset (matching the chat-panel
+behavior), and omitted otherwise (SDK default is streaming).
+
 ## Session options passed through (selected)
 
 | Option | Source |
@@ -43,7 +59,8 @@ Source: `src/copilot.ts` — class `CopilotService`. The single place the plugin
 | `skillDirectories`, `disabledSkills` | config-loader skills |
 | `onPermissionRequest` | tool-approval modal or `approveAll` |
 | `onUserInputRequest`, `onElicitationRequest` | modals |
-| `provider` | BYOK settings |
+| `provider` | BYOK settings — injected by both `buildSessionConfig` (chat) and `chat()`/`inlineChat()` (inline) |
+| `streaming` | `false` for `foundry-local`; omitted otherwise |
 
 ## Version info callback (#15)
 
@@ -63,14 +80,18 @@ binary path.
 The SDK already checks protocol mismatch during `client.start()` and throws — so there is no
 separate mismatch Notice on successful connect. `getStatus()` is purely informational.
 
-## Ollama connection error handling
+## Ollama connection error handling (#25)
 
-Planned: hybrid connection error notice for the `ollama` preset (issue #25). When a connection
-error occurs during `session.send()` or `chat()`/`inlineChat()` with `providerPreset === 'ollama'`,
-catch the network error and show an actionable Obsidian Notice: "Could not reach Ollama at
-localhost:11434. Is it running? Start it with `ollama serve`." Text-only — no retry button, no
-auto-retry. The existing Settings > Models **Test** button is the manual retry path. Planned:
-broader Ollama UX polish including capability detection (issue #30).
+When the `ollama` preset is active and a `chat()` or `inlineChat()` call fails with a
+connection/network error (ECONNREFUSED, fetch failed, etc.), the service fires its
+`onConnectionError` callback. `main.ts` wires this to an Obsidian `Notice` (8 seconds):
+
+> Could not reach Ollama at localhost:11434. Is it running? Start it with `ollama serve`.
+
+Text-only — no retry button, no auto-retry. The existing Settings > Models **Test** button
+is the manual retry path. The `onConnectionError` callback pattern keeps `CopilotService`
+free of `obsidian` imports. Broader Ollama UX polish including capability detection is
+tracked in issue #30.
 
 ## Invariants
 
