@@ -17,6 +17,7 @@ export default class SidekickPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		this.applyInlineIconClass();
 		this.addSettingTab(new SidekickSettingTab(this.app, this));
 
 		// Register the Sidekick chat view
@@ -236,6 +237,7 @@ export default class SidekickPlugin extends Plugin {
 	}
 
 	onunload() {
+		document.body.removeClass('sidekick-no-inline-icon');
 		if (this.copilot) {
 			void this.copilot.stop();
 		}
@@ -298,6 +300,10 @@ export default class SidekickPlugin extends Plugin {
 		}
 	}
 
+	applyInlineIconClass() {
+		document.body.toggleClass('sidekick-no-inline-icon', !this.settings.inlineIconEnabled);
+	}
+
 	async saveSettings() {
 		// Clone settings and strip secure fields before writing to data.json
 		const dataToSave = {...this.settings};
@@ -305,5 +311,6 @@ export default class SidekickPlugin extends Plugin {
 			(dataToSave as Record<string, unknown>)[key] = '';
 		}
 		await this.saveData(dataToSave);
+		this.applyInlineIconClass();
 	}
 }

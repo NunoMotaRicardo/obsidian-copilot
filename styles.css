@@ -988,6 +988,11 @@
 	cursor: default;
 }
 
+.sidekick-no-inline-icon .cm-editor .sidekick-gutter {
+	width: 0;
+	overflow: hidden;
+}
+
 /* Indicator button inside the gutter */
 .sidekick-autocomplete-indicator {
 	display: flex;
