@@ -727,7 +727,8 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 		if (data.success) {
 			if (data.preCompactionTokens != null) lines.push(`Pre-compaction tokens: ${data.preCompactionTokens.toLocaleString()}`);
 			if (data.postCompactionTokens != null) lines.push(`Post-compaction tokens: ${data.postCompactionTokens.toLocaleString()}`);
-			if (data.tokensRemoved != null) lines.push(`Tokens removed: ${data.tokensRemoved.toLocaleString()}`);
+			const tokensRemoved = data.tokensRemoved ?? (data.preCompactionTokens != null && data.postCompactionTokens != null ? data.preCompactionTokens - data.postCompactionTokens : undefined);
+			if (tokensRemoved != null) lines.push(`Tokens removed: ${tokensRemoved.toLocaleString()}`);
 			if (data.messagesRemoved != null) lines.push(`Messages removed: ${data.messagesRemoved}`);
 		} else {
 			if (data.error) lines.push(`Error: ${data.error}`);
