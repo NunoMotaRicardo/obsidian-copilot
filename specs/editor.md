@@ -14,9 +14,9 @@ the Sidekick submenu shows image-specific actions instead of the normal selectio
 **Extract text below**, **Convert to mermaid below**, and **Ask about image** (a modal for a
 free-form question whose response is inserted below the embed). These reuse the same module-level
 functions as the file-explorer image menu (`extractImageContent()`, `convertToMermaidBelow()`),
-so there is no duplication. The image embed is detected via regex matching against the
-`IMAGE_EXTENSIONS` set for both wikilink and standard markdown syntaxes, then resolved through
-`app.metadataCache.getFirstLinkpathDest()`.
+so there is no duplication. The image embed is detected via regex matching for common image
+extensions in both wikilink and standard markdown syntaxes, then resolved through
+`app.metadataCache.getFirstLinkpathDest()` (and validated against `IMAGE_EXTENSIONS`).
 
 - Quick actions replace text in place using the **inline operations model** via
   `CopilotService.chat()` (ephemeral session, `approveAll`). When a BYOK provider is active,
