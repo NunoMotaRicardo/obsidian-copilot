@@ -702,7 +702,8 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 		if (!this.toolCallsContainer) return;
 
 		// Try to update the existing compaction_start block's spinner
-		const startBlock = this.toolCallsContainer.querySelector('.sidekick-compaction-block:last-of-type');
+		const blocks = Array.from(this.toolCallsContainer.querySelectorAll('.sidekick-compaction-block'));
+		const startBlock = blocks.reverse().find(b => b.querySelector('.sidekick-tool-call-spinner'));
 		if (startBlock) {
 			const spinner = startBlock.querySelector('.sidekick-tool-call-spinner');
 			if (spinner) spinner.remove();
