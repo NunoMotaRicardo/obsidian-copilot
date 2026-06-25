@@ -34,6 +34,8 @@ import type {BackgroundSession} from './view/types';
 /** Frozen sentinel — when earlyEventBuffer points here, onEvent stops buffering. */
 const EMPTY_EVENT_BUFFER: readonly import('./copilot').SessionEvent[] = Object.freeze([]);
 import {buildPrompt, buildSdkAttachments, mapMcpServers} from './view/sessionConfig';
+import {fetchProviderModels} from './providerModels';
+import type {ByokProviderPreset} from './providerModels';
 
 export const SIDEKICK_VIEW_TYPE = 'sidekick-view';
 
@@ -383,11 +385,27 @@ export class SidekickView extends ItemView {
 			if (!options?.silent) {
 				const preset = this.plugin.settings.providerPreset;
 				const isByok = preset !== 'github';
-				if (isByok && this.plugin.settings.providerModel) {
-					const id = this.plugin.settings.providerModel;
-					this.models = [{id, name: id} as ModelInfo];
-				} else if (isByok) {
-					// BYOK providers without a model name: keep existing list
+				if (isByok) {
+					// Sync-first: show configured model immediately
+					if (this.plugin.settings.providerModel) {
+						const id = this.plugin.settings.providerModel;
+						this.models = [{id, name: id} as ModelInfo];
+					}
+					// Background fetch: populate full list from provider
+					if (this.plugin.settings.providerBaseUrl) {
+						fetchProviderModels({
+							preset: preset as ByokProviderPreset,
+							baseUrl: this.plugin.settings.providerBaseUrl,
+							apiKey: this.plugin.settings.providerApiKey,
+							bearerToken: this.plugin.settings.providerBearerToken,
+						}).then(result => {
+							if (result.ok && result.models.length > 0) {
+								this.models = result.models;
+								this.selectedModel = this.plugin.settings.providerModel || result.models[0]!.id;
+								this.populateModelSelect();
+							}
+						}).catch(() => { /* keep configured model */ });
+					}
 				} else if (this.plugin.copilot) {
 					try {
 						this.models = await this.plugin.copilot.listModels();

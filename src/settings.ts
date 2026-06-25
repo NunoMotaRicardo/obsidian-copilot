@@ -4,6 +4,7 @@ import type {ModelInfo, ContextTier} from "./copilot";
 import type {McpInputVariable} from "./types";
 import {loadMcpInputs, loadAgents} from "./configLoader";
 import {fetchProviderModels} from "./providerModels";
+import type {ByokProviderPreset} from "./providerModels";
 
 const DEFAULT_COPILOT_LOCATION = '';
 
@@ -584,8 +585,20 @@ export class SidekickSettingTab extends PluginSettingTab {
 							});
 						text.inputEl.setAttribute('list', MODEL_DATALIST_ID);
 						modelDatalistEl = (text.inputEl.parentElement ?? providerFieldsEl).createEl('datalist', {attr: {id: MODEL_DATALIST_ID}});
-						// Avoid stale suggestions when switching presets; repopulate only after a successful Test.
 						populateModelDatalist([]);
+						// Auto-fetch model list in background when settings open
+						if (this.plugin.settings.providerBaseUrl) {
+							fetchProviderModels({
+								preset: this.plugin.settings.providerPreset as ByokProviderPreset,
+								baseUrl: this.plugin.settings.providerBaseUrl,
+								apiKey: this.plugin.settings.providerApiKey,
+								bearerToken: this.plugin.settings.providerBearerToken,
+							}).then(result => {
+								if (result.ok && result.models.length > 0) {
+									populateModelDatalist(result.models);
+								}
+							}).catch(() => { /* keep empty — user can click Test */ });
+						}
 					});
 
 				new Setting(providerFieldsEl)
