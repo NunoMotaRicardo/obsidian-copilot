@@ -67,5 +67,13 @@ vault scope, folder tree.
   `session.rpc.agent.select`, replay history from `session.getEvents()`
   (`user.message`, `assistant.reasoning`, `assistant.message`).
 - The active note is attached as context; working directory follows the active note's folder
-  unless overridden in the toolbar.
+  unless overridden in the toolbar. Planned: auto-resolve and attach note-embedded images
+  (`![[image.png]]`, `![](path.png)`) as SDK file attachments up to a configurable cap (default
+  3), gated by `settings.autoIncludeNoteImages` and `settings.maxNoteImages`, respecting SDK
+  `model.capabilities.limits.vision.max_prompt_images` when reported (issue #27).
+- Image attachments: the input area supports drag/drop (OS and vault files), clipboard paste
+  (screenshot to blob), and the paperclip attachment button. `buildSdkAttachments()` in
+  `sessionConfig.ts` converts `ChatAttachment` items to SDK format using a hybrid strategy:
+  on-disk files as `{type: 'file', path}`, clipboard pastes as `{type: 'blob', data, mimeType}`.
+  Planned: end-to-end verification with vision-capable Ollama model (issue #26).
 - Sessions are auto-named `<Agent>: <first message>`; trigger/search sessions are tagged.

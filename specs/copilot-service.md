@@ -63,6 +63,15 @@ binary path.
 The SDK already checks protocol mismatch during `client.start()` and throws — so there is no
 separate mismatch Notice on successful connect. `getStatus()` is purely informational.
 
+## Ollama connection error handling
+
+Planned: hybrid connection error notice for the `ollama` preset (issue #25). When a connection
+error occurs during `session.send()` or `chat()`/`inlineChat()` with `providerPreset === 'ollama'`,
+catch the network error and show an actionable Obsidian Notice: "Could not reach Ollama at
+localhost:11434. Is it running? Start it with `ollama serve`." Text-only — no retry button, no
+auto-retry. The existing Settings > Models **Test** button is the manual retry path. Planned:
+broader Ollama UX polish including capability detection (issue #30).
+
 ## Invariants
 
 - No other module imports `@github/copilot-sdk` directly (modals import types only — keep

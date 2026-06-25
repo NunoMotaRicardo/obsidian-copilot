@@ -22,7 +22,9 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
   (`'' | none | concise | detailed`), infinite sessions toggle
   (`infiniteSessionsEnabled: boolean`, default `true` — matches SDK default; issue #5),
   search mode/agent. Reasoning and context controls live in the chat toolbar's model-icon
-  menu, not a settings-tab field. Planned: long-context default (0004).
+  menu, not a settings-tab field. Planned: long-context default (0004). Planned:
+  `autoIncludeNoteImages: boolean` (default `true`) and `maxNoteImages: number` (default `3`)
+  for auto-attaching note-embedded images as context (issue #27).
 - **Bots** — Telegram bot config (token stored via `localStorage`, not `data.json`).
 - **MCP input variables** — stored values for `${input:...}` placeholders; passwords kept in
   localStorage only.
