@@ -53,7 +53,6 @@ export class CopilotService {
 	private readonly onVersionInfo: ((status: GetStatusResponse, resolvedPath: string) => void) | undefined;
 	private readonly onConnectionError: ((error: Error) => void) | undefined;
 	private readonly provider: ProviderConfig | undefined;
-	private readonly providerPreset: string | undefined;
 	private readonly providerStreaming: boolean | undefined;
 	private resolvedCliPath: ResolvedCliPath | null = null;
 	private versionInfo: GetStatusResponse | null = null;
@@ -69,8 +68,6 @@ export class CopilotService {
 		onConnectionError?: (error: Error) => void;
 		/** BYOK provider config injected into all sessions created by chat()/inlineChat(). */
 		provider?: ProviderConfig;
-		/** Provider preset name (e.g. 'ollama', 'foundry-local') for error detection. */
-		providerPreset?: string;
 		/** Explicit streaming override; when false, sessions use non-streaming mode. */
 		streaming?: boolean;
 	}) {
@@ -82,7 +79,6 @@ export class CopilotService {
 		this.onVersionInfo = opts?.onVersionInfo;
 		this.onConnectionError = opts?.onConnectionError;
 		this.provider = opts?.provider;
-		this.providerPreset = opts?.providerPreset;
 		this.providerStreaming = opts?.streaming;
 	}
 

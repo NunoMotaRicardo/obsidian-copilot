@@ -216,7 +216,6 @@ export default class SidekickPlugin extends Plugin {
 			onVersionInfo,
 			...(onConnectionError ? {onConnectionError} : {}),
 			...(providerConfig ? {provider: providerConfig} : {}),
-			...(s.providerPreset !== 'github' ? {providerPreset: s.providerPreset} : {}),
 			// foundry-local requires non-streaming mode
 			...(s.providerPreset === 'foundry-local' ? {streaming: false} : {}),
 		};
