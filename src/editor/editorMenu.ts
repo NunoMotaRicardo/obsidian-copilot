@@ -719,6 +719,11 @@ function buildImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile): void {
 				.setIcon('git-fork')
 				.onClick(() => void convertToMermaidBelow(plugin, file)),
 		);
+		submenu.addItem((si) =>
+			si.setTitle('Ask about image')
+				.setIcon('message-circle')
+				.onClick(() => showAskAboutImageModal(plugin, file)),
+		);
 	});
 }
 
