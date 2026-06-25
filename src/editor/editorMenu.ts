@@ -582,7 +582,7 @@ const IMAGE_EXT_PATTERN = Array.from(IMAGE_EXTENSIONS).join('|');
 /** Regex for wikilink image embed: ![[filename.ext]] or ![[filename.ext|alt]] */
 const WIKILINK_IMAGE_RE = new RegExp(`!\\[\\[([^\\]|]+\\.(?:${IMAGE_EXT_PATTERN}))(?:\\|[^\\]]*)?\\]\\]`, 'i');
 /** Regex for standard markdown image embed: ![alt](path.ext) */
-const MARKDOWN_IMAGE_RE = new RegExp(`!\\[[^\\]]*\\]\\(([^)]+\\.(?:${IMAGE_EXT_PATTERN}))\\)`, 'i')
+const MARKDOWN_IMAGE_RE = new RegExp(`!\\[[^\\]]*\\]\\(([^)]+\\.(?:${IMAGE_EXT_PATTERN}))\\)`, 'i');
 
 /**
  * Check whether the cursor line contains an image embed and resolve the
