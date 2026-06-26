@@ -386,9 +386,10 @@ export class TelegramBotService {
 			...(disabledSkills.length > 0 ? {disabledSkills} : {}),
 			...(() => {
 				const parts: string[] = [];
+				const normalizedBasePath = basePath.replace(/\\/g, '/');
 				parts.push('[Workspace Path Information]');
-				parts.push(`Vault root: ${basePath}`);
-				parts.push(`Working directory: ${basePath}`);
+				parts.push(`Vault root: ${normalizedBasePath}`);
+				parts.push(`Working directory: ${normalizedBasePath}`);
 				return {systemMessage: {mode: 'append' as const, content: parts.join('\n')}};
 			})(),
 		};

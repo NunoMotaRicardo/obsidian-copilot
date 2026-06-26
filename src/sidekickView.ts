@@ -1070,9 +1070,9 @@ export class SidekickView extends ItemView {
 			...(() => {
 				const parts: string[] = [];
 				// Workspace path information for the LLM
-				const vaultRoot = this.getVaultBasePath();
+				const vaultRoot = this.getVaultBasePath().replace(/\\/g, '/');
 				const activeFile = this.app.workspace.getActiveFile();
-				const workDir = this.getWorkingDirectory();
+				const workDir = this.getWorkingDirectory().replace(/\\/g, '/');
 				parts.push('[Workspace Path Information]');
 				parts.push(`Vault root: ${vaultRoot}`);
 				if (activeFile) {
