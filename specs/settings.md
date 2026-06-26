@@ -96,6 +96,21 @@ can pick from a dropdown-like list or type any value. The datalist is **in-memor
 (Settings-tab session state) — not persisted to `data.json`/`localStorage`; it resets to empty
 when Settings is reopened until Test is clicked again.
 
+## BYOK Model Capability Detection
+
+To enable appropriate feature UI/UX gating (such as vision support for image attachments or reasoning configuration), model capabilities are dynamically detected when listing models from the provider endpoint:
+
+- **Ollama Provider**:
+  - Uses a **heuristic-first** approach: checks the model's `details.family` and `details.families` arrays returned by `/api/tags`.
+  - Multimodal/vision support is detected if the family/families array contains `"mllama"` or `"clip"`, or if the model name includes known vision keywords (e.g. `vision`, `llava`, `minicpm`, `moondream`, `gemma3`).
+  - If the heuristic is inconclusive (e.g. unknown family/families), the plugin fires a cached, parallel `POST /api/show` request with `{"model": "<name>"}` and inspects the `capabilities` array returned from the response. If `"vision"` is in the list, vision is supported. If `"tools"` is in the list, tool execution is supported.
+  - Results of `/api/show` are cached in memory (at the settings tab or provider model lifecycle level) to avoid redundant network calls.
+
+- **Non-Ollama BYOK Providers (OpenAI, Azure, Anthropic, etc.)**:
+  - Since standard `/v1/models` responses contain no capability fields, name-based regex heuristics are used on the model ID.
+  - **Vision Support**: Enabled if the model ID matches a case-insensitive regex for known vision-capable models (e.g. `gpt-4o`, `gpt-4-vision`, `claude-3`, `gemini-1.5`, `vision`, `pixtral`).
+  - **Reasoning Effort/Summary Support**: Enabled if the model ID matches reasoning models (e.g. `o1`, `o3`).
+
 ## Invariants
 
 - Secrets (tokens, password inputs) never land in `data.json`.
