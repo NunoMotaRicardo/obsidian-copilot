@@ -560,11 +560,11 @@ export class SidekickSettingTab extends PluginSettingTab {
 		const modelsPanel = panels['models']!;
 		const providerFieldsEl = modelsPanel.createDiv();
 
-		const providerDefaults: Record<string, {baseUrl?: string; wireApi?: 'completions' | 'responses'}> = {
+		const providerDefaults: Record<string, {baseUrl?: string; wireApi?: 'completions' | 'responses'; requestTimeout?: number}> = {
 			openai:          {baseUrl: 'https://api.openai.com/v1'},
 			azure:           {baseUrl: 'https://your-resource.openai.azure.com/openai/v1/', wireApi: 'responses'},
 			anthropic:       {baseUrl: 'https://api.anthropic.com'},
-			ollama:          {baseUrl: 'http://localhost:11434/v1'},
+			ollama:          {baseUrl: 'http://localhost:11434/v1', requestTimeout: 120},
 			'foundry-local': {baseUrl: 'http://localhost:<PORT>/v1'},
 		};
 
@@ -717,6 +717,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 						this.plugin.settings.providerBaseUrl = '';
 					}
 					this.plugin.settings.providerWireApi = defaults?.wireApi ?? 'completions';
+					this.plugin.settings.providerRequestTimeout = defaults?.requestTimeout ?? 0;
 					if (newPreset === 'github') {
 						this.plugin.settings.providerModel = '';
 						this.plugin.settings.inlineModel = '';
