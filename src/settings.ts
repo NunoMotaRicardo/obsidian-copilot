@@ -672,10 +672,23 @@ export class SidekickSettingTab extends PluginSettingTab {
 			'other-openai': 'Other OpenAI-compatible',
 		};
 
-		new Setting(modelsPanel)
+		const providerSetting = new Setting(modelsPanel)
 			.setName('Provider')
-			.setDesc('Use the built-in models or configure your own (local or remote).')
-			.addDropdown(dropdown => dropdown
+			.setDesc('Use the built-in models or configure your own (local or remote).');
+
+		const updateProviderDesc = (preset: string) => {
+			if (preset === 'ollama') {
+				providerSetting.setDesc(
+					'Ollama runs models locally. Install from ollama.com, start the server ("ollama serve"), ' +
+					'pull a model ("ollama pull llama3.1"), then click Test to verify.'
+				);
+			} else {
+				providerSetting.setDesc('Use the built-in models or configure your own (local or remote).');
+			}
+		};
+		updateProviderDesc(this.plugin.settings.providerPreset);
+
+		providerSetting.addDropdown(dropdown => dropdown
 				.addOptions(providerOptions)
 				.setValue(this.plugin.settings.providerPreset)
 				.onChange(async (value) => {
@@ -693,6 +706,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 						this.plugin.settings.inlineModel = '';
 					}
 					await this.plugin.saveSettings();
+					updateProviderDesc(newPreset);
 					rebuildProviderFields();
 					await refreshModels();
 				}))
@@ -725,20 +739,39 @@ export class SidekickSettingTab extends PluginSettingTab {
 							apiKey: this.plugin.settings.providerApiKey,
 							bearerToken: this.plugin.settings.providerBearerToken,
 						});
+						const isOllama = preset === 'ollama';
 						if (!result.ok) {
 							populateModelDatalist([]);
-							new Notice(`Test failed: ${result.error}`);
+							if (isOllama && /econnrefused|connection refused|fetch failed|network/i.test(result.error)) {
+								new Notice('Could not connect to Ollama. Make sure Ollama is running ("ollama serve") and the base URL is correct.');
+							} else {
+								new Notice(`Test failed: ${result.error}`);
+							}
 						} else if (result.models.length === 0) {
 							populateModelDatalist([]);
-							new Notice('Connected, but the provider reported no available models.');
+							if (isOllama) {
+								new Notice('Connected to Ollama, but no models are installed. Pull one with "ollama pull llama3.1".');
+							} else {
+								new Notice('Connected, but the provider reported no available models.');
+							}
 						} else {
 							populateModelDatalist(result.models);
-							new Notice(`Connected — found ${result.models.length} model(s).`);
+							const modelMsg = `Connected — found ${result.models.length} model(s).`;
+							if (isOllama && !this.plugin.settings.providerModel) {
+								new Notice(`${modelMsg} Select a model in the Model name field below.`);
+							} else {
+								new Notice(modelMsg);
+							}
 						}
 						await refreshModels();
 					} catch (e) {
 						populateModelDatalist([]);
-						new Notice(`Test failed: ${String(e)}`);
+						const isOllamaCatch = this.plugin.settings.providerPreset === 'ollama';
+						if (isOllamaCatch && /econnrefused|connection refused|fetch failed|network/i.test(String(e))) {
+							new Notice('Could not connect to Ollama. Make sure Ollama is running ("ollama serve") and the base URL is correct.');
+						} else {
+							new Notice(`Test failed: ${String(e)}`);
+						}
 					} finally {
 						button.setDisabled(false);
 						button.setButtonText('Test');

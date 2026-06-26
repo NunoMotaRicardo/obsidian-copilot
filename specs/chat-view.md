@@ -84,3 +84,16 @@ vault scope, folder tree.
   distinguish image types: `type: 'blob'` (clipboard paste) and `type: 'file'` with an
   image extension both display the image icon, matching the existing `type: 'image'` path.
 - Sessions are auto-named `<Agent>: <first message>`; trigger/search sessions are tagged.
+
+## Ollama error handling (#30)
+
+When `providerPreset === 'ollama'`, chat error messages are intercepted and replaced with
+user-friendly Ollama-specific messages via `src/ollamaErrors.ts`:
+
+- `session.error` events and `handleSend` catch blocks pass raw errors through
+  `formatErrorForChat()`, which uses `friendlyOllamaError()` to pattern-match common failure
+  modes (connection refused, model not found, OOM, etc.) and return actionable guidance.
+- `tool.execution_complete` failures that indicate the model lacks tool-use or vision support
+  show additional guidance messages suggesting alternative models (e.g. qwen2.5 for tools,
+  llava for vision).
+- All friendly messages are Ollama-preset-gated — non-Ollama providers see raw error text.

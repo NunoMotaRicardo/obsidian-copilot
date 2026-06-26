@@ -95,8 +95,30 @@ Copilot CLI (spawn ENOENT)") or SDK session messages ("disconnect failed").
 
 Text-only — no retry button, no auto-retry. The existing Settings > Models **Test** button
 is the manual retry path. The `onConnectionError` callback pattern keeps `CopilotService`
-free of `obsidian` imports. Broader Ollama UX polish including capability detection is
-tracked in issue #30.
+free of `obsidian` imports.
+
+## Ollama UX polish (#30)
+
+`src/ollamaErrors.ts` provides Ollama-specific error detection and user-friendly message
+mapping, used when `providerPreset === 'ollama'`:
+
+- `friendlyOllamaError(rawMessage)` — matches common error patterns (ECONNREFUSED, model not
+  found, out of memory, tool-use unsupported, etc.) and returns a friendly message, or `null`.
+- `isToolUseError(msg)` / `isVisionError(msg)` — detect tool-use and vision capability errors.
+- `TOOL_USE_GUIDANCE` / `VISION_GUIDANCE` — actionable suggestions with alternative model names.
+
+Chat-side integration (`sidekickView.ts`):
+- `session.error` events and `handleSend` catch blocks use `formatErrorForChat()` which
+  delegates to `friendlyOllamaError()` when the Ollama preset is active.
+- `tool.execution_complete` failures that match tool-use or vision patterns show additional
+  contextual guidance messages in the chat.
+
+Settings-side integration (`settings.ts`):
+- The Provider setting description changes to Ollama setup instructions when the Ollama preset
+  is selected (install, serve, pull, test).
+- The Test button shows Ollama-specific notices: connection failures suggest "ollama serve",
+  zero models suggest "ollama pull", successful connection with no model selected prompts the
+  user to pick one.
 
 ## Public API surface
 
