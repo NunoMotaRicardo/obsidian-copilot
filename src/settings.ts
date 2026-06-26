@@ -5,6 +5,7 @@ import type {McpInputVariable} from "./types";
 import {loadMcpInputs, loadAgents} from "./configLoader";
 import {fetchProviderModels} from "./providerModels";
 import type {ByokProviderPreset} from "./providerModels";
+import {friendlyOllamaError} from "./ollamaErrors";
 
 const DEFAULT_COPILOT_LOCATION = '';
 
@@ -742,8 +743,9 @@ export class SidekickSettingTab extends PluginSettingTab {
 						const isOllama = preset === 'ollama';
 						if (!result.ok) {
 							populateModelDatalist([]);
-							if (isOllama && /econnrefused|connection refused|fetch failed|network/i.test(result.error)) {
-								new Notice('Could not connect to Ollama. Make sure Ollama is running ("ollama serve") and the base URL is correct.');
+							const friendly = isOllama ? friendlyOllamaError(result.error) : null;
+							if (friendly) {
+								new Notice(friendly);
 							} else {
 								new Notice(`Test failed: ${result.error}`);
 							}
@@ -767,8 +769,9 @@ export class SidekickSettingTab extends PluginSettingTab {
 					} catch (e) {
 						populateModelDatalist([]);
 						const isOllamaCatch = this.plugin.settings.providerPreset === 'ollama';
-						if (isOllamaCatch && /econnrefused|connection refused|fetch failed|network/i.test(String(e))) {
-							new Notice('Could not connect to Ollama. Make sure Ollama is running ("ollama serve") and the base URL is correct.');
+						const friendlyCatch = isOllamaCatch ? friendlyOllamaError(String(e)) : null;
+						if (friendlyCatch) {
+							new Notice(friendlyCatch);
 						} else {
 							new Notice(`Test failed: ${String(e)}`);
 						}
