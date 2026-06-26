@@ -407,7 +407,7 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 		this.renderActiveNoteBar();
 
 		// Update working directory to the parent folder of the active note
-		if (file) {
+		if (file && this.plugin.settings.autoUpdateWorkingDirectory) {
 			const lastSlash = file.path.lastIndexOf('/');
 			const newDir = lastSlash > 0 ? file.path.substring(0, lastSlash) : '';
 			if (newDir !== this.workingDir) {

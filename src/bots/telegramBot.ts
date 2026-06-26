@@ -384,6 +384,14 @@ export class TelegramBotService {
 			...(defaultAgentName ? {agent: defaultAgentName} : {}),
 			...(skillDirs.length > 0 ? {skillDirectories: skillDirs} : {}),
 			...(disabledSkills.length > 0 ? {disabledSkills} : {}),
+			...(() => {
+				const parts: string[] = [];
+				const normalizedBasePath = basePath.replace(/\\/g, '/');
+				parts.push('[Workspace Path Information]');
+				parts.push(`Vault root: ${normalizedBasePath}`);
+				parts.push(`Working directory: ${normalizedBasePath}`);
+				return {systemMessage: {mode: 'append' as const, content: parts.join('\n')}};
+			})(),
 		};
 	}
 

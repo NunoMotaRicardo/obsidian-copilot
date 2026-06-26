@@ -1067,7 +1067,24 @@ export class SidekickView extends ItemView {
 			...(opts.selectedAgentName ? {agent: opts.selectedAgentName} : {}),
 			...(skillDirs.length > 0 ? {skillDirectories: skillDirs} : {}),
 			...(disabledSkills.length > 0 ? {disabledSkills} : {}),
-			...(opts.systemContent ? {systemMessage: {mode: 'append' as const, content: opts.systemContent}} : {}),
+			...(() => {
+				const parts: string[] = [];
+				// Workspace path information for the LLM
+				const vaultRoot = this.getVaultBasePath().replace(/\\/g, '/');
+				const activeFile = this.app.workspace.getActiveFile();
+				const workDir = this.getWorkingDirectory().replace(/\\/g, '/');
+				parts.push('[Workspace Path Information]');
+				parts.push(`Vault root: ${vaultRoot}`);
+				if (activeFile) {
+					parts.push(`Active note: ${vaultRoot}/${activeFile.path}`);
+				}
+				parts.push(`Working directory: ${workDir}`);
+				const wsInfo = parts.join('\n');
+				const combined = opts.systemContent
+					? opts.systemContent + '\n\n' + wsInfo
+					: wsInfo;
+				return {systemMessage: {mode: 'append' as const, content: combined}};
+			})(),
 			onEvent: (event: import('./copilot').SessionEvent) => {
 				// Buffer early events until registerSessionEvents() drains
 				// and sets earlyEventBuffer to a frozen empty array.

@@ -66,8 +66,13 @@ vault scope, folder tree.
 - Session restore: resume by id with the full current session config, re-select agent via
   `session.rpc.agent.select`, replay history from `session.getEvents()`
   (`user.message`, `assistant.reasoning`, `assistant.message`).
-- The active note is attached as context; working directory follows the active note's folder
-  unless overridden in the toolbar. When `settings.autoIncludeNoteImages` is enabled (default),
+- The active note is attached as context. The working directory defaults to the vault root and
+  only auto-updates to the active note's parent folder if `settings.autoUpdateWorkingDirectory`
+  is enabled (default `false`). The active note's folder can also be overridden manually in the toolbar.
+  To anchor path resolution, the session is configured with standard system instructions containing
+  the absolute vault root, active note path, and working directory, preventing the LLM from constructing
+  incorrect absolute paths (e.g., nesting file paths under attached image subfolders).
+  When `settings.autoIncludeNoteImages` is enabled (default),
   `handleSend()` reads the active note content, scans for image embeds (`![[image.png]]` and
   `![alt](path.png)` syntaxes), resolves them to vault files via `resolveNoteImageEmbeds()`
   (`sessionConfig.ts`), deduplicates against manual attachments, and auto-attaches the first N
