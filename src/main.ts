@@ -211,6 +211,8 @@ export default class SidekickPlugin extends Plugin {
 			? () => { new Notice(ollamaErrorMsg, 8000); }
 			: undefined;
 
+		const requestTimeout = s.providerRequestTimeout > 0 ? s.providerRequestTimeout * 1000 : undefined;
+
 		const providerOpts = {
 			...(onListModels ? {onListModels} : {}),
 			onVersionInfo,
@@ -218,6 +220,7 @@ export default class SidekickPlugin extends Plugin {
 			...(providerConfig ? {provider: providerConfig} : {}),
 			// foundry-local requires non-streaming mode
 			...(s.providerPreset === 'foundry-local' ? {streaming: false} : {}),
+			...(requestTimeout ? {requestTimeout} : {}),
 		};
 
 		if (s.copilotType === 'remote') {
