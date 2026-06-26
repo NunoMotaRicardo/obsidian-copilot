@@ -88,6 +88,9 @@ export interface SidekickSettings {
 	/** Search mode: 'basic' reuses session with minimal config, 'advanced' allows full agent/model/skills/tools. */
 	searchMode: 'basic' | 'advanced';
 
+	/** Automatically update working directory to the active note's parent folder. */
+	autoUpdateWorkingDirectory: boolean;
+
 	/** Automatically resolve and attach note-embedded images as context. */
 	autoIncludeNoteImages: boolean;
 	/** Maximum number of note-embedded images to auto-attach per message. */
@@ -155,6 +158,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	infiniteSessionsEnabled: true,
 	searchAgent: '',
 	searchMode: 'basic',
+	autoUpdateWorkingDirectory: false,
 	autoIncludeNoteImages: true,
 	maxNoteImages: 3,
 	telegramBotId: '',
@@ -905,6 +909,16 @@ export class SidekickSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.inlineIconEnabled)
 				.onChange(async (value) => {
 					this.plugin.settings.inlineIconEnabled = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(capPanel)
+			.setName('Auto-update working directory')
+			.setDesc('Automatically change the working directory to the active note\'s parent folder when switching notes.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoUpdateWorkingDirectory)
+				.onChange(async (value) => {
+					this.plugin.settings.autoUpdateWorkingDirectory = value;
 					await this.plugin.saveSettings();
 				}));
 
