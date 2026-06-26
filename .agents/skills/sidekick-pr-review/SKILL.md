@@ -44,6 +44,7 @@ Checks out, reviews, and updates an existing GitHub pull request on `NunoMotaRic
 
 6. **Post Review Comments** — Post a summary of the findings as a comment on the GitHub PR:
    - Create a scratch comment file at `<appDataDir>/brain/<conversation-id>/scratch/pr_<#N>_comment.md`.
+   - Ensure the comment includes a signature at the bottom indicating the AI agent and the model that performed the review (e.g., `*Review performed by Antigravity (Gemini 3.5 Flash).*`).
    - Post it using:
      ```bash
      gh pr comment <#N> -F "<scratch-comment-filepath>"
@@ -62,7 +63,7 @@ Checks out, reviews, and updates an existing GitHub pull request on `NunoMotaRic
      ```bash
      git push origin HEAD
      ```
-   - Post a follow-up comment on the PR detailing the pushed fixes.
+   - Post a follow-up comment on the PR detailing the pushed fixes, signed with the model name.
 
 ## Rules
 - **No New Agent Needed**: This workflow is orchestrated directly by the main agent (Antigravity/self) as it requires a hybrid capability of coding, reviewing, and GitHub CLI execution.
