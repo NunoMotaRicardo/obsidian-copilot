@@ -58,7 +58,17 @@ three outcomes:
   is up but no model is loaded. The datalist is cleared (no stale entries from a previous
   Test).
 - **Network / auth / parse error** — `new Notice('Test failed: ' + error)`, same wording as
-  the existing Copilot-tab Test failure. Datalist is cleared.
+  the existing Copilot-tab Test failure. Datalist is cleared. For the `ollama` preset,
+  connection errors show a specific message: "Could not connect to Ollama. Make sure Ollama
+  is running ("ollama serve") and the base URL is correct."
+
+For the `ollama` preset specifically:
+- **0 models** — notice reads "Connected to Ollama, but no models are installed. Pull one
+  with 'ollama pull llama3.1'."
+- **N > 0 models, no model selected** — notice appends "Select a model in the Model name
+  field below."
+- The **Provider** setting description dynamically updates to show Ollama setup instructions
+  when the `ollama` preset is selected.
 
 The `github` preset's Copilot-tab "Client type" Test button is unchanged: it still calls
 `copilot.ping()` (connectivity check), independent of this behavior.

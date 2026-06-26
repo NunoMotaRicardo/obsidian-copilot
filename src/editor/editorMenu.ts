@@ -11,6 +11,7 @@ import {EditModal} from '../modals/editModal';
 import {TASKS, TEXT_ACTION_SYSTEM_MESSAGE} from '../tasks';
 import type {TextTask} from '../tasks';
 import type {SelectionInfo} from '../types';
+import {formatErrorForNotice} from '../ollamaErrors';
 
 // Re-export for consumers that still import from editorMenu
 export {TEXT_ACTION_SYSTEM_MESSAGE} from '../tasks';
@@ -289,7 +290,7 @@ async function createNewNote(plugin: SidekickPlugin, folder: TFolder, templateTy
 		await leaf.openFile(newFile);
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -396,7 +397,7 @@ async function createNewCanvas(plugin: SidekickPlugin, folder: TFolder, template
 		await leaf.openFile(newFile);
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error \u2014 ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -451,7 +452,7 @@ async function createSummaryNote(plugin: SidekickPlugin, folder: TFolder): Promi
 		await leaf.openFile(newFile);
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -492,7 +493,7 @@ export async function runSelectionAction(
 	} catch (e) {
 		notice.hide();
 		console.error('Sidekick: editor action error', e);
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	} finally {
 		try { view.dispatch({effects: setFetching.of(false)}); } catch { /* view destroyed */ }
 	}
@@ -706,7 +707,7 @@ async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: st
 		new Notice('Sidekick: response inserted.');
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -881,7 +882,7 @@ async function extractAndInsertBelow(plugin: SidekickPlugin, file: TFile, embedH
 		new Notice('Sidekick: extracted content inserted.');
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -903,7 +904,7 @@ async function extractAndReplace(plugin: SidekickPlugin, file: TFile): Promise<v
 		new Notice('Sidekick: image replaced with extracted content.');
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -961,7 +962,7 @@ async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedH
 		new Notice('Sidekick: Mermaid diagram inserted.');
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	}
 }
 
@@ -1021,7 +1022,7 @@ async function applyEditNote(plugin: SidekickPlugin, view: EditorView, userPromp
 		new Notice('Sidekick: note edited.');
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	} finally {
 		try { view.dispatch({effects: setFetching.of(false)}); } catch { /* view destroyed */ }
 	}
@@ -1086,7 +1087,7 @@ async function applyStructure(plugin: SidekickPlugin, view: EditorView, template
 		new Notice('Sidekick: note structured.');
 	} catch (e) {
 		notice.hide();
-		new Notice(`Sidekick: error — ${String(e)}`);
+		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
 	} finally {
 		try { view.dispatch({effects: setFetching.of(false)}); } catch { /* view destroyed */ }
 	}
