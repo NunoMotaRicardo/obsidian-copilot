@@ -47,6 +47,8 @@ export interface SidekickSettings {
 	providerModel: string;
 	/** Max prompt tokens for BYOK providers (0 = provider default). Controls SDK-side compaction. */
 	providerMaxPromptTokens: number;
+	/** Request timeout in seconds for BYOK providers (0 = SDK default 60s). */
+	providerRequestTimeout: number;
 	/** Persisted form defaults for the Edit modal. */
 	editModalDefaults?: EditModalDefaults;
 	/** Custom display names for sessions, keyed by SDK sessionId. */
@@ -146,6 +148,7 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	providerWireApi: 'completions',
 	providerModel: '',
 	providerMaxPromptTokens: 0,
+	providerRequestTimeout: 0,
 	reasoningEffort: '',
 	reasoningSummary: '',
 	contextTier: 'default',
@@ -658,6 +661,18 @@ export class SidekickSettingTab extends PluginSettingTab {
 						.onChange(async (value) => {
 							const n = parseInt(value.trim(), 10);
 							this.plugin.settings.providerMaxPromptTokens = (Number.isFinite(n) && n > 0) ? n : 0;
+							await this.plugin.saveSettings();
+						}));
+
+				new Setting(providerFieldsEl)
+					.setName('Request timeout (seconds)')
+					.setDesc('Max time to wait for a model response. 0 = default (60s). Increase for slow models (e.g. Ollama vision).')
+					.addText(text => text
+						.setPlaceholder('0')
+						.setValue(this.plugin.settings.providerRequestTimeout ? String(this.plugin.settings.providerRequestTimeout) : '')
+						.onChange(async (value) => {
+							const n = parseInt(value.trim(), 10);
+							this.plugin.settings.providerRequestTimeout = (Number.isFinite(n) && n > 0) ? n : 0;
 							await this.plugin.saveSettings();
 						}));
 			}

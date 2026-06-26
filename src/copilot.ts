@@ -54,6 +54,7 @@ export class CopilotService {
 	private readonly onConnectionError: ((error: Error) => void) | undefined;
 	private readonly provider: ProviderConfig | undefined;
 	private readonly providerStreaming: boolean | undefined;
+	private readonly requestTimeout: number | undefined;
 	private resolvedCliPath: ResolvedCliPath | null = null;
 	private versionInfo: GetStatusResponse | null = null;
 
@@ -70,6 +71,8 @@ export class CopilotService {
 		provider?: ProviderConfig;
 		/** Explicit streaming override; when false, sessions use non-streaming mode. */
 		streaming?: boolean;
+		/** Request timeout in ms for sendAndWait calls. undefined = SDK default (60s). */
+		requestTimeout?: number;
 	}) {
 		this.cliPath = opts?.cliPath;
 		this.cliUrl = opts?.cliUrl;
@@ -80,7 +83,11 @@ export class CopilotService {
 		this.onConnectionError = opts?.onConnectionError;
 		this.provider = opts?.provider;
 		this.providerStreaming = opts?.streaming;
+		this.requestTimeout = opts?.requestTimeout;
 	}
+
+	/** Configured request timeout in ms, or undefined for SDK default (60s). */
+	get timeout(): number | undefined { return this.requestTimeout; }
 
 	private state: ConnectionState = 'disconnected';
 
@@ -303,7 +310,7 @@ export class CopilotService {
 					await session.sendAndWait({
 						prompt: options.prompt,
 						...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
-					});
+					}, this.requestTimeout);
 				return response?.data.content;
 			} finally {
 				await session.disconnect();
@@ -357,7 +364,7 @@ export class CopilotService {
 				await session.sendAndWait({
 					prompt: options.prompt,
 					...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
-				});
+				}, this.requestTimeout);
 			return {content: response?.data.content, sessionId: session.sessionId};
 		} catch (e) {
 			if (this.onConnectionError && e instanceof Error && this.isConnectionError(e)) {

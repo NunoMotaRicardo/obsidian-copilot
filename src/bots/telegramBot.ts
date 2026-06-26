@@ -262,7 +262,7 @@ export class TelegramBotService {
 			}
 
 			try {
-				const response = await session.sendAndWait(sendOpts, 120_000);
+				const response = await session.sendAndWait(sendOpts, Math.max(120_000, this.plugin.copilot?.timeout ?? 0));
 				const content = response?.data.content ?? '';
 
 				if (content) {

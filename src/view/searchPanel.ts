@@ -432,7 +432,7 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 			const response = await this.basicSearchSession.sendAndWait({
 				prompt: searchPrompt,
 				attachments: [{type: 'directory', path: scopePath, displayName: scopeLabel}],
-			}, 120_000);
+			}, Math.max(120_000, this.plugin.copilot?.timeout ?? 0));
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} catch (e) {
@@ -476,7 +476,7 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 			const response = await this.searchSession.sendAndWait({
 				prompt: searchPrompt,
 				attachments: [{type: 'directory', path: scopePath, displayName: scopeLabel}],
-			}, 120_000);
+			}, Math.max(120_000, this.plugin.copilot?.timeout ?? 0));
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} finally {
