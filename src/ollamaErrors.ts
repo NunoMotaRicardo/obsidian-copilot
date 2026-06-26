@@ -3,6 +3,12 @@
  * Only used when `providerPreset === 'ollama'`.
  */
 
+/** Friendly message for tool-use failures. */
+export const TOOL_USE_GUIDANCE = 'This model does not support tool use. Try a model that supports function calling, such as qwen2.5 or llama3.1.';
+
+/** Friendly message for vision/image failures. */
+export const VISION_GUIDANCE = 'This model does not support images. Try a multimodal model such as llava, llama3.2-vision, or gemma3.';
+
 interface OllamaErrorMatch {
 	/** Pattern to match against the raw error message (case-insensitive). */
 	pattern: RegExp;
@@ -40,13 +46,18 @@ const OLLAMA_ERROR_PATTERNS: OllamaErrorMatch[] = [
 	},
 	// Tool use not supported
 	{
-		pattern: /does not support tools|tool.?use.*not.*support|tools.*not.*available|invalid.*tool/i,
-		friendly: 'This model does not support tool use. Try a model that supports function calling, such as qwen2.5 or llama3.1.',
+		pattern: /does not support tools|tool.?use.*not.*support|tools.*not.*available|invalid.*tool|tool_calls.*not.*supported/i,
+		friendly: TOOL_USE_GUIDANCE,
+	},
+	// Vision not supported
+	{
+		pattern: /does not support (vision|image|multimodal)|image.*not.*support|vision.*not.*available|invalid.*image|cannot process image|unexpected.*image/i,
+		friendly: VISION_GUIDANCE,
 	},
 	// 404 / bad endpoint
 	{
 		pattern: /404|not found.*endpoint|path not found/i,
-		friendly: 'Ollama endpoint not found (404). Check the base URL in **Settings → Models** — the default is http://localhost:11434/v1.',
+		friendly: 'Ollama endpoint not found (404). Check the base URL in **Settings → Models** — the default is http://localhost:11434/v1. Also ensure a model is selected.',
 	},
 	// Generic fetch failures
 	{
@@ -82,8 +93,17 @@ export function isVisionError(errorMessage: string): boolean {
 	return /does not support (vision|image|multimodal)|image.*not.*support|vision.*not.*available|invalid.*image|cannot process image|unexpected.*image/i.test(errorMessage);
 }
 
-/** Friendly message for tool-use failures. */
-export const TOOL_USE_GUIDANCE = 'This model does not support tool use. Try a model that supports function calling, such as qwen2.5 or llama3.1.';
-
-/** Friendly message for vision/image failures. */
-export const VISION_GUIDANCE = 'This model does not support images. Try a multimodal model such as llava, llama3.2-vision, or gemma3.';
+/**
+ * Format an error message for an Obsidian Notice, using Ollama-friendly messages when applicable.
+ */
+export function formatErrorForNotice(error: unknown, providerPreset: string): string {
+	const rawError = String(error);
+	const cleanError = rawError.startsWith('Error: ') ? rawError.slice(7) : rawError;
+	if (providerPreset === 'ollama') {
+		const friendly = friendlyOllamaError(cleanError);
+		if (friendly) {
+			return `Ollama: ${friendly}`;
+		}
+	}
+	return `Sidekick: error — ${cleanError}`;
+}

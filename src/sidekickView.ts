@@ -831,13 +831,9 @@ export class SidekickView extends ItemView {
 				this.finalizeStreamingMessage();
 				break;
 			case 'session.error': {
-				const errMsg = (data as {message: string}).message;
+				const errMsg = (data as {message?: string}).message ?? '';
 				this.finalizeStreamingMessage();
 				this.addInfoMessage(this.formatErrorForChat(errMsg));
-				// Show additional Ollama guidance for vision errors at session level
-				if (this.isOllamaPreset() && isVisionError(errMsg)) {
-					this.addInfoMessage(`Ollama: ${VISION_GUIDANCE}`);
-				}
 				break;
 			}
 			case 'tool.execution_start':
@@ -1131,9 +1127,10 @@ export class SidekickView extends ItemView {
 
 	/** Format an error for display, using Ollama-friendly messages when applicable. */
 	formatErrorForChat(rawError: string): string {
-		if (!this.isOllamaPreset()) return `Error: ${rawError}`;
-		const friendly = friendlyOllamaError(rawError);
-		return friendly ? `Ollama: ${friendly}` : `Error: ${rawError}`;
+		const cleanError = rawError.startsWith('Error: ') ? rawError.slice(7) : rawError;
+		if (!this.isOllamaPreset()) return `Error: ${cleanError}`;
+		const friendly = friendlyOllamaError(cleanError);
+		return friendly ? `Ollama: ${friendly}` : `Error: ${cleanError}`;
 	}
 
 	getVaultBasePath(): string {
