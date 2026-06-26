@@ -37,6 +37,7 @@ const EMPTY_EVENT_BUFFER: readonly import('./copilot').SessionEvent[] = Object.f
 import {buildPrompt, buildSdkAttachments, mapMcpServers, resolveNoteImageEmbeds} from './view/sessionConfig';
 import {fetchProviderModels} from './providerModels';
 import type {ByokProviderPreset} from './providerModels';
+import {friendlyOllamaError, isToolUseError, isVisionError, TOOL_USE_GUIDANCE, VISION_GUIDANCE} from './ollamaErrors';
 
 export const SIDEKICK_VIEW_TYPE = 'sidekick-view';
 
@@ -700,7 +701,7 @@ export class SidekickView extends ItemView {
 			if (e instanceof Error) {
 				console.error('[sidekick] Stack:', e.stack);
 			}
-			this.addInfoMessage(`Error: ${String(e)}`);
+			this.addInfoMessage(this.formatErrorForChat(String(e)));
 		}
 	}
 
@@ -829,22 +830,34 @@ export class SidekickView extends ItemView {
 				}
 				this.finalizeStreamingMessage();
 				break;
-			case 'session.error':
+			case 'session.error': {
+				const errMsg = (data as {message?: string}).message ?? '';
 				this.finalizeStreamingMessage();
-				this.addInfoMessage(`Error: ${(data as {message: string}).message}`);
+				this.addInfoMessage(this.formatErrorForChat(errMsg));
 				break;
+			}
 			case 'tool.execution_start':
 				this.turnToolsUsed.push(data.toolName as string);
 				this.addToolCallBlock(data.toolCallId as string, data.toolName as string, data.arguments as string);
 				break;
-			case 'tool.execution_complete':
+			case 'tool.execution_complete': {
+				const toolError = data.error as {message: string} | undefined;
 				this.completeToolCallBlock(
 					data.toolCallId as string,
 					data.success as boolean,
 					data.result as {content?: string; detailedContent?: string} | undefined,
-					data.error as {message: string} | undefined,
+					toolError,
 				);
+				// Show Ollama-specific guidance for tool/vision failures
+				if (this.isOllamaPreset() && toolError?.message) {
+					if (isToolUseError(toolError.message)) {
+						this.addInfoMessage(`Ollama: ${TOOL_USE_GUIDANCE}`);
+					} else if (isVisionError(toolError.message)) {
+						this.addInfoMessage(`Ollama: ${VISION_GUIDANCE}`);
+					}
+				}
 				break;
+			}
 			case 'skill.invoked':
 				this.turnSkillsUsed.push(data.name as string);
 				break;
@@ -1105,6 +1118,19 @@ export class SidekickView extends ItemView {
 		const base = this.getVaultBasePath();
 		if (!this.workingDir) return base;
 		return base + '/' + normalizePath(this.workingDir);
+	}
+
+	/** Whether the active provider preset is Ollama. */
+	isOllamaPreset(): boolean {
+		return this.plugin.settings.providerPreset === 'ollama';
+	}
+
+	/** Format an error for display, using Ollama-friendly messages when applicable. */
+	formatErrorForChat(rawError: string): string {
+		const cleanError = rawError.startsWith('Error: ') ? rawError.slice(7) : rawError;
+		if (!this.isOllamaPreset()) return `Error: ${cleanError}`;
+		const friendly = friendlyOllamaError(cleanError);
+		return friendly ? `Ollama: ${friendly}` : `Error: ${cleanError}`;
 	}
 
 	getVaultBasePath(): string {
