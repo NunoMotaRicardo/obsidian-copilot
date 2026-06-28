@@ -904,7 +904,12 @@ export class SidekickView extends ItemView {
 			session.on('assistant.message', (event) => { this.handleSessionEvent(event); }),
 			session.on('assistant.usage', (event) => { this.handleSessionEvent(event); }),
 			session.on('session.idle', (event) => { this.handleSessionEvent(event); }),
-			session.on('session.error', (event) => { this.handleSessionEvent(event); }),
+			session.on('session.error', async (event) => {
+				if (this.currentSession) {
+					try { await this.currentSession.abort(); } catch { /* ignore */ }
+				}
+				this.handleSessionEvent(event);
+			}),
 			session.on('tool.execution_start', (event) => { this.handleSessionEvent(event); }),
 			session.on('tool.execution_complete', (event) => { this.handleSessionEvent(event); }),
 			session.on('skill.invoked', (event) => { this.handleSessionEvent(event); }),

@@ -261,7 +261,7 @@ export class TelegramBotService {
 			}
 
 			try {
-				const response = await session.sendAndWait(sendOpts, getAdaptiveTimeout(this.plugin.app, undefined, this.plugin.settings.providerRequestTimeout));
+				const response = await this.plugin.copilot!.sendAndWaitWithAbort(session, sendOpts, getAdaptiveTimeout(this.plugin.app, undefined, this.plugin.settings.providerRequestTimeout));
 				const content = response?.data.content ?? '';
 
 				if (content) {

@@ -266,6 +266,29 @@ export class CopilotService {
 		return await this.client!.getLastSessionId();
 	}
 
+	// ── Active cancellation wrapper ─────────────────────────────
+
+	/**
+	 * Send a message and wait for the response, automatically invoking session.abort()
+	 * if an error (timeout, connection error, RPC failure) occurs during the wait.
+	 */
+	async sendAndWaitWithAbort(
+		session: CopilotSession,
+		options: MessageOptions,
+		timeout?: number,
+	): Promise<AssistantMessageEvent | undefined> {
+		try {
+			return await session.sendAndWait(options, timeout);
+		} catch (e) {
+			try {
+				await session.abort();
+			} catch {
+				/* ignore abort failure */
+			}
+			throw e;
+		}
+	}
+
 	// ── Convenience: one-shot chat ──────────────────────────────────
 
 	/**
@@ -307,7 +330,7 @@ export class CopilotService {
 			});
 			try {
 				const response: AssistantMessageEvent | undefined =
-					await session.sendAndWait({
+					await this.sendAndWaitWithAbort(session, {
 						prompt: options.prompt,
 						...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
 					}, this.requestTimeout);
@@ -361,7 +384,7 @@ export class CopilotService {
 				...(this.providerStreaming !== undefined ? {streaming: this.providerStreaming} : {}),
 			});
 			const response: AssistantMessageEvent | undefined =
-				await session.sendAndWait({
+				await this.sendAndWaitWithAbort(session, {
 					prompt: options.prompt,
 					...(options.attachments && options.attachments.length > 0 ? {attachments: options.attachments} : {}),
 				}, this.requestTimeout);

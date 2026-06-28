@@ -429,14 +429,14 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 		const searchPrompt = `Perform a semantic search for files matching the following query. Return ONLY a JSON array of objects, each with "file" (vault-relative path), "folder" (parent folder path), and "reason" (brief description why it matches). Sort by relevance (best match first). No markdown fences, no extra text.\n\nQuery: ${query}`;
 
 		try {
-			const response = await this.basicSearchSession.sendAndWait({
+			const response = await this.plugin.copilot!.sendAndWaitWithAbort(this.basicSearchSession, {
 				prompt: searchPrompt,
 				attachments: [{type: 'directory', path: scopePath, displayName: scopeLabel}],
 			}, getAdaptiveTimeout(this.app, this.searchWorkingDir, this.plugin.settings.providerRequestTimeout));
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} catch (e) {
-			// Session may be broken — discard and rethrow so outer catch handles it
+			// Session may be broken — disconnect and rethrow so outer catch handles it
 			try { await this.basicSearchSession.disconnect(); } catch { /* ignore */ }
 			this.basicSearchSession = null;
 			throw e;
@@ -473,12 +473,14 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 		const scopePath = this.getSearchWorkingDirectory();
 		const scopeLabel = this.searchWorkingDir || this.app.vault.getName();
 		try {
-			const response = await this.searchSession.sendAndWait({
+			const response = await this.plugin.copilot!.sendAndWaitWithAbort(this.searchSession, {
 				prompt: searchPrompt,
 				attachments: [{type: 'directory', path: scopePath, displayName: scopeLabel}],
 			}, getAdaptiveTimeout(this.app, this.searchWorkingDir, this.plugin.settings.providerRequestTimeout));
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
+		} catch (e) {
+			throw e;
 		} finally {
 			if (this.searchSession) {
 				try { await this.searchSession.disconnect(); } catch { /* ignore */ }
