@@ -261,12 +261,15 @@ export class TelegramBotService {
 			}
 
 			try {
-				const response = await session.sendAndWait(sendOpts, getAdaptiveTimeout(this.plugin.app, undefined, this.plugin.settings.providerRequestTimeout));
+				const response = await this.plugin.copilot!.sendAndWaitWithAbort(session, sendOpts, getAdaptiveTimeout(this.plugin.app, undefined, this.plugin.settings.providerRequestTimeout));
 				const content = response?.data.content ?? '';
 
 				if (content) {
 					await this.sendReply(chatId, threadId, content, msg.message_id);
 				}
+			} catch (e) {
+				try { await session.abort(); } catch { /* ignore */ }
+				throw e;
 			} finally {
 				// Always disconnect our handle — the session persists server-side
 				// and can be resumed by the next message or the chat view.
