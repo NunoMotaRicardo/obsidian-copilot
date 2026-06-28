@@ -1,0 +1,9 @@
+description = "Run the sidekick-lite playbook: quick one-pass implementation and draft PR for small changes."
+
+prompt = """
+Follow this playbook for a quick implementation.
+
+@{.claude/skills/sidekick-lite/SKILL.md}
+
+Input: {{args}}
+"""
