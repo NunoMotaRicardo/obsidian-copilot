@@ -1,5 +1,5 @@
 import {requestUrl} from 'obsidian';
-import type {ModelInfo} from './copilot';
+import type {ModelInfo, ReasoningEffort} from './copilot';
 
 /** BYOK provider presets (everything except the built-in `github` preset). */
 export type ByokProviderPreset = 'openai' | 'azure' | 'anthropic' | 'ollama' | 'foundry-local' | 'other-openai';
@@ -16,13 +16,62 @@ export type FetchProviderModelsResult =
 	| {ok: true; models: ModelInfo[]}
 	| {ok: false; error: string};
 
-const placeholderCapabilities: ModelInfo['capabilities'] = {
-	supports: {vision: false, reasoningEffort: false},
-	limits: {max_context_window_tokens: 0},
-};
+const VISION_REGEX = /gpt-4o|gpt-4-vision|claude-3|gemini-1\.5|vision|pixtral/i;
+const REASONING_REGEX = /\b(o1|o3)\b|o1-|o3-/i;
+
+const ollamaShowCache = new Map<string, Promise<{vision: boolean; tools: boolean}>>();
 
 function toRecordOrNull(value: unknown): Record<string, unknown> | null {
 	return (typeof value === 'object' && value !== null && !Array.isArray(value)) ? (value as Record<string, unknown>) : null;
+}
+
+function createCapabilities(supportsVision: boolean, supportsReasoning: boolean): ModelInfo['capabilities'] {
+	const caps: ModelInfo['capabilities'] = {
+		supports: {vision: supportsVision, reasoningEffort: supportsReasoning},
+		limits: {max_context_window_tokens: 0},
+	};
+	if (supportsVision) {
+		caps.limits.vision = {
+			supported_media_types: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+			max_prompt_images: 10,
+			max_prompt_image_size: 10 * 1024 * 1024,
+		};
+	}
+	return caps;
+}
+
+async function fetchOllamaShowCapabilities(
+	rootUrl: string,
+	modelName: string,
+	headers: Record<string, string>
+): Promise<{vision: boolean; tools: boolean}> {
+	const cacheKey = `${rootUrl}::${modelName}`;
+	const cached = ollamaShowCache.get(cacheKey);
+	if (cached) return cached;
+
+	const promise = (async () => {
+		try {
+			const resp = await requestUrl({
+				url: `${rootUrl}/api/show`,
+				method: 'POST',
+				headers,
+				body: JSON.stringify({model: modelName}),
+			});
+			if (resp.status >= 200 && resp.status < 300) {
+				const json = resp.json as Record<string, unknown>;
+				const capabilities = Array.isArray(json?.capabilities) ? json.capabilities : [];
+				const vision = capabilities.includes('vision');
+				const tools = capabilities.includes('tools');
+				return {vision, tools};
+			}
+		} catch {
+			// Ignore errors and fall back to false
+		}
+		return {vision: false, tools: false};
+	})();
+
+	ollamaShowCache.set(cacheKey, promise);
+	return promise;
 }
 
 /**
@@ -79,13 +128,32 @@ export async function fetchProviderModels(params: FetchProviderModelsParams): Pr
 
 		if (preset === 'ollama') {
 			const rawModels = Array.isArray(json.models) ? json.models : [];
-			const models: ModelInfo[] = rawModels
-				.map(m => {
-					const entry = toRecordOrNull(m);
-					return typeof entry?.name === 'string' ? entry.name : '';
-				})
-				.filter((name): name is string => name.length > 0)
-				.map(name => ({id: name, name, capabilities: placeholderCapabilities}));
+			const modelsPromises: Promise<ModelInfo | null>[] = rawModels.map(async m => {
+				const entry = toRecordOrNull(m);
+				const name = typeof entry?.name === 'string' ? entry.name : '';
+				if (name.length === 0) return null;
+
+				const details = toRecordOrNull(entry?.details);
+				const family = typeof details?.family === 'string' ? details.family.toLowerCase() : '';
+				const families = Array.isArray(details?.families) ? details.families.map(f => String(f).toLowerCase()) : [];
+				const nameMatches = /vision|llava|minicpm|moondream|gemma3/i.test(name);
+				const heuristicVision = family === 'mllama' || family === 'clip' || families.includes('mllama') || families.includes('clip') || nameMatches;
+
+				let supportsVision = heuristicVision;
+				if (!supportsVision) {
+					const showCaps = await fetchOllamaShowCapabilities(rootUrl, name, headers);
+					if (showCaps.vision) supportsVision = true;
+				}
+
+				return {
+					id: name,
+					name,
+					capabilities: createCapabilities(supportsVision, false),
+				};
+			});
+
+			const resolvedModels = await Promise.all(modelsPromises);
+			const models = resolvedModels.filter((m): m is ModelInfo => m !== null);
 			return {ok: true, models};
 		}
 
@@ -96,9 +164,22 @@ export async function fetchProviderModels(params: FetchProviderModelsParams): Pr
 				const id = entry?.id;
 				const name = entry?.name;
 				if (typeof id !== 'string' || id.length === 0) return null;
-				return {id, name: (typeof name === 'string' && name.length > 0) ? name : id, capabilities: placeholderCapabilities};
+				const displayName = (typeof name === 'string' && name.length > 0) ? name : id;
+				const supportsVision = VISION_REGEX.test(id) || VISION_REGEX.test(displayName);
+				const supportsReasoning = REASONING_REGEX.test(id) || REASONING_REGEX.test(displayName);
+
+				const modelInfo: ModelInfo = {
+					id,
+					name: displayName,
+					capabilities: createCapabilities(supportsVision, supportsReasoning),
+				};
+				if (supportsReasoning) {
+					modelInfo.supportedReasoningEfforts = ['low', 'medium', 'high'] as ReasoningEffort[];
+					modelInfo.defaultReasoningEffort = 'medium' as ReasoningEffort;
+				}
+				return modelInfo;
 			})
-			.filter((m): m is NonNullable<typeof m> => m !== null);
+			.filter((m): m is ModelInfo => m !== null);
 		return {ok: true, models};
 	} catch (e) {
 		return {ok: false, error: String(e)};
