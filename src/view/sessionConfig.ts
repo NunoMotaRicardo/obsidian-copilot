@@ -3,6 +3,7 @@ import type {App} from 'obsidian';
 import type {MCPServerConfig, ModelInfo, MessageOptions} from '../copilot';
 import type {AgentConfig, McpServerEntry, ChatAttachment} from '../types';
 import {IMAGE_EXTS} from '../types';
+import {debugTrace} from '../debug';
 
 /**
  * Map MCP server entries to MCPServerConfig objects, filtering by enabled set.
@@ -232,4 +233,38 @@ export function resolveNoteImageEmbeds(
 	}
 
 	return results;
+}
+
+/**
+ * Calculate dynamic client timeout in milliseconds based on vault file count in scope.
+ * Formula: Math.max(120_000, Math.min(600_000, 30_000 + fileCount * 200))
+ * If a custom timeout is configured in settings (configuredTimeoutSec > 0), uses Math.max(dynamicTimeout, configuredTimeoutMs).
+ */
+export function getAdaptiveTimeout(
+	app: App,
+	scopePath?: string | null,
+	configuredTimeoutSec?: number
+): number {
+	const allFiles = app.vault.getFiles();
+	let fileCount = 0;
+	if (!scopePath || scopePath === '/' || scopePath === '.') {
+		fileCount = allFiles.length;
+	} else {
+		const normalized = normalizePath(scopePath);
+		if (normalized === '' || normalized === '.' || normalized === '/') {
+			fileCount = allFiles.length;
+		} else {
+			const prefix = normalized + '/';
+			fileCount = allFiles.filter(f => f.path === normalized || f.path.startsWith(prefix)).length;
+		}
+	}
+
+	const dynamicTimeout = Math.max(120_000, Math.min(600_000, 30_000 + fileCount * 200));
+	const configuredTimeoutMs = (configuredTimeoutSec && configuredTimeoutSec > 0)
+		? configuredTimeoutSec * 1000
+		: 0;
+
+	const finalTimeout = Math.max(dynamicTimeout, configuredTimeoutMs);
+	debugTrace(`Sidekick: adaptive timeout calculated: ${finalTimeout}ms for ${fileCount} files in scope '${scopePath ?? ''}'`);
+	return finalTimeout;
 }

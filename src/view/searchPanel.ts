@@ -5,7 +5,7 @@ import {approveAll} from '../copilot';
 import type {AgentConfig} from '../types';
 import {getSkillsFolder} from '../settings';
 import {FolderTreeModal, ToolApprovalModal} from '../modals';
-import {mapMcpServers} from './sessionConfig';
+import {mapMcpServers, getAdaptiveTimeout} from './sessionConfig';
 
 declare module '../sidekickView' {
 	interface SidekickView {
@@ -432,7 +432,7 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 			const response = await this.basicSearchSession.sendAndWait({
 				prompt: searchPrompt,
 				attachments: [{type: 'directory', path: scopePath, displayName: scopeLabel}],
-			}, Math.max(120_000, this.plugin.copilot?.timeout ?? 0));
+			}, getAdaptiveTimeout(this.app, this.searchWorkingDir, this.plugin.settings.providerRequestTimeout));
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} catch (e) {
@@ -476,7 +476,7 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 			const response = await this.searchSession.sendAndWait({
 				prompt: searchPrompt,
 				attachments: [{type: 'directory', path: scopePath, displayName: scopeLabel}],
-			}, Math.max(120_000, this.plugin.copilot?.timeout ?? 0));
+			}, getAdaptiveTimeout(this.app, this.searchWorkingDir, this.plugin.settings.providerRequestTimeout));
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} finally {
