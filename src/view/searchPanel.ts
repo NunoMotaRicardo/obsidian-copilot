@@ -436,8 +436,7 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} catch (e) {
-			// Session may be broken — abort, disconnect and rethrow so outer catch handles it
-			try { await this.basicSearchSession.abort(); } catch { /* ignore */ }
+			// Session may be broken — disconnect and rethrow so outer catch handles it
 			try { await this.basicSearchSession.disconnect(); } catch { /* ignore */ }
 			this.basicSearchSession = null;
 			throw e;
@@ -481,9 +480,6 @@ export function installSearchPanel(ViewClass: { prototype: unknown }): void {
 			const content = response?.data.content || '';
 			this.renderSearchResults(content);
 		} catch (e) {
-			if (this.searchSession) {
-				try { await this.searchSession.abort(); } catch { /* ignore */ }
-			}
 			throw e;
 		} finally {
 			if (this.searchSession) {

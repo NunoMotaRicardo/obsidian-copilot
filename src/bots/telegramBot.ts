@@ -267,9 +267,6 @@ export class TelegramBotService {
 				if (content) {
 					await this.sendReply(chatId, threadId, content, msg.message_id);
 				}
-			} catch (e) {
-				try { await session.abort(); } catch { /* ignore */ }
-				throw e;
 			} finally {
 				// Always disconnect our handle — the session persists server-side
 				// and can be resumed by the next message or the chat view.

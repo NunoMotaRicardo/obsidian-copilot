@@ -832,9 +832,6 @@ export class SidekickView extends ItemView {
 				break;
 			case 'session.error': {
 				const errMsg = (data as {message?: string}).message ?? '';
-				if (this.currentSession) {
-					try { void this.currentSession.abort(); } catch { /* ignore */ }
-				}
 				this.finalizeStreamingMessage();
 				this.addInfoMessage(this.formatErrorForChat(errMsg));
 				break;
