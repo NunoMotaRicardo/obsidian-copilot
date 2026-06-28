@@ -13,8 +13,7 @@ import type {AgentConfig, SkillInfo, McpServerEntry} from '../types';
 import {getSkillsFolder, getMcpInputValue} from '../settings';
 import {loadAgents, loadSkills, loadMcpServers} from '../configLoader';
 import type {InputResolver} from '../configLoader';
-import {mapMcpServers} from '../view/sessionConfig';
-import {resolveModelForAgent} from '../view/sessionConfig';
+import {mapMcpServers, resolveModelForAgent, getAdaptiveTimeout} from '../view/sessionConfig';
 import type {TelegramMessage} from './telegramApi';
 import {TelegramApi, TelegramApiError} from './telegramApi';
 import type {BotConnectionStatus} from './types';
@@ -262,7 +261,7 @@ export class TelegramBotService {
 			}
 
 			try {
-				const response = await session.sendAndWait(sendOpts, Math.max(120_000, this.plugin.copilot?.timeout ?? 0));
+				const response = await session.sendAndWait(sendOpts, getAdaptiveTimeout(this.plugin.app, undefined, this.plugin.settings.providerRequestTimeout));
 				const content = response?.data.content ?? '';
 
 				if (content) {
