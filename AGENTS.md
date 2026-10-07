@@ -1,74 +1,44 @@
-# obsidian-copilot (Sidekick fork)
+# Sidekick repository instructions
 
-Personal fork of obsidian-sidekick: an Obsidian desktop plugin embedding GitHub Copilot as an
-assistant (chat panel, editor actions, ghost text, triggers, Telegram bot). Upstream is
-unmaintained; this fork tracks the GA Copilot SDK.
+This repository is the source for Sidekick, an Obsidian Community Plugin that brings GitHub Copilot and BYOK AI providers into Obsidian through a configurable sidebar, editor actions, triggers, search, and optional bot integrations.
 
-## Stack & build
+## Core expectations
 
-- TypeScript (strict) → single `main.js` via esbuild. Node/Electron APIs allowed (desktop-only).
-- `npm run build` = `tsc -noEmit -skipLibCheck` + production bundle. `npm run dev` = watch.
-- `npm run lint` (eslint + eslint-plugin-obsidianmd).
-- Key dependency: `@github/copilot-sdk` (1.x, GA). It talks JSON-RPC to a system-installed
-  `copilot` CLI (SDK protocol v3; CLI must be ≥ ~1.0.5x). SDK type reference lives in
-  `node_modules/@github/copilot-sdk/dist/*.d.ts` — read those before guessing API shapes,
-  and see `.claude/skills/copilot-sdk-reference/`.
+- Treat this as an Obsidian plugin first. Prefer Obsidian APIs, existing DOM patterns, and small focused modules over framework-heavy solutions.
+- Use the existing npm toolchain. Build with `npm run build`, lint with `npm run lint`, and use `npm run dev` for watch mode.
+- Keep runtime dependencies minimal and compatible with the Obsidian plugin environment.
+- Do not commit generated artifacts or assume `main.js` is the source of truth. Source lives under `src/`.
 
-## Architecture
+## Architectural boundaries
 
-Read `specs/00-architecture.md` first; one spec per module in `specs/`. Rules:
+- Keep `src/main.ts` small and focused on plugin lifecycle, settings bootstrapping, view registration, and top-level command wiring.
+- Put Copilot SDK, CLI resolution, provider wiring, reconnect logic, and session bridge behavior in `src/copilot.ts` rather than scattering that logic across UI files.
+- Keep vault-local customization parsing in `src/configLoader.ts`. If the change affects agents, skills, prompts, triggers, or MCP configuration loading, update the parser and types deliberately.
+- Keep translation from Obsidian state into SDK session config, attachments, and MCP server mappings in `src/view/sessionConfig.ts`.
+- Keep persisted plugin settings and secret handling in `src/settings.ts`.
+- Prefer adding focused modules under `src/view/`, `src/modals/`, `src/editor/`, or `src/bots/` instead of growing monolithic files.
 
-- **All SDK access goes through `CopilotService` (`src/copilot.ts`).** Other modules import
-  SDK types only via its re-exports.
-- `src/main.ts` stays lifecycle-only. UI in `src/view/*` + `src/modals/*`, editor features in
-  `src/editor/*`, vault config parsing in `src/configLoader.ts`, session config assembly in
-  `src/view/sessionConfig.ts`, settings/secrets in `src/settings.ts`.
-- Update the matching spec in the same change that alters module behavior.
+## Sidekick customization model
 
-## Workflow
+- Sidekick runtime customizations are vault-local and rooted at `settings.sidekickFolder`, which defaults to `sidekick/`.
+- Preserve the current layout and semantics unless the task is explicitly about changing them: `agents/*.agent.md`, `prompts/*.prompt.md`, `skills/<name>/SKILL.md`, `tools/mcp.json`, and `triggers/*.trigger.md`.
+- Do not imply that VS Code or GitHub Copilot customization files such as `.github/copilot-instructions.md`, `*.instructions.md`, `.prompt.md`, or `.agent.md` are automatically loaded by the plugin runtime. They are repository authoring aids unless the code explicitly imports or translates them.
+- When changing customization formats, keep backward compatibility in mind for existing frontmatter and JSON shapes.
 
-- Work items are GitHub issues on `NunoMotaRicardo/obsidian-copilot` (`gh issue
-  list/view/create/edit`); `in-progress` label marks active work. Run `/sidekick-build <#N |
-  "description">` for the full plan→code→review→PR cycle, or `/sidekick-lite "description"` for
-  a quick one-pass change (still build/lint/deploy-test, opens a draft PR). See
-  `wiki/decisions/2026-06-14-github-issue-workflow.md`.
-- Verify changes with `.claude/skills/deploy-test/`: build → copy artifacts to
-  `D:\nmr-obsidian\obsidian-configs\.obsidian\plugins\sidekick\` → reload
-  (`obsidian plugin:reload id=sidekick`). That vault is the user's real vault — deploy only
-  builds that compile clean.
-- Releases (BRAT): `.claude/skills/release/`. Tag = `manifest.json` version, no `v` prefix.
+## Settings, safety, and privacy
 
-## Agents
+- Keep defaults sensible and stable. Avoid renaming command ids, settings keys, or configuration fields without a migration path.
+- Persist secrets through the existing secure local-storage helpers instead of writing tokens or API keys into plugin data.
+- Default to local-first behavior. New network access, remote execution, or third-party integrations must be user-visible, justified, and documented.
+- Respect Obsidian plugin cleanup requirements. Use `register*` helpers and avoid leaking listeners, intervals, or view state across reloads.
 
-`.claude/agents/sidekick-*.md` are Claude Code dev-workflow agents for *building* this
-plugin, orchestrated by `/sidekick-build` and `/sidekick-lite`:
+## UI and editor work
 
-- **sidekick-analyst** — synthesizes `grill-me` sessions and librarian work into `wiki/`
-  (decision records, guides). Hands functional intent to the planner.
-- **sidekick-technical-planner** — entry point of `/sidekick-build`: audits `specs/`/`src/`
-  against the request, creates or scopes a GitHub issue, and splits oversized work into
-  sub-issues. Owns `specs/<module>.md` updates.
-- **sidekick-coder** — implements one issue (full mode) or one description (lite mode) at a
-  time in small, verified increments (build + lint + deploy-test), on a `claude/<slug>` branch.
-- **sidekick-reviewer** — diff-only quality + security gate (`/code-review` +
-  `/security-review`), pass/fail verdict and PR description draft; full mode only.
+- Match the current Obsidian-native UI style instead of introducing a separate component framework.
+- Keep user-facing copy concise, clear, and in sentence case.
+- For editor features, rely on Obsidian's CodeMirror runtime and preserve the externalized CodeMirror dependency model.
 
-Live elicitation (`grill-me`) runs in the main thread; spawn sidekick-analyst afterwards to
-write it up.
+## Documentation expectations
 
-> **Don't confuse with the plugin's own feature:** the vault-local `sidekick/` folder
-> (`agents/*.agent.md`, `prompts/`, `skills/`, `tools/`, `triggers/`) is a runtime
-> customization model parsed by `src/configLoader.ts` — documented in
-> `wiki/ai-customization-guide.md`. The `.claude/agents/sidekick-*.md` files above are
-> unrelated developer tooling for working on this repo.
-
-## Conventions
-
-- Tabs for indentation, single quotes, no trailing semicolon omission — match existing files.
-- Secrets never go in `data.json` (use localStorage paths already established in settings).
-- Register all listeners/intervals through Obsidian `register*` helpers so unload is clean.
-- Obsidian UI copy: sentence case, **bold** for literal labels, arrows for navigation.
-- Don't rename command IDs, settings keys, or vault-local customization field names without a
-  migration path.
-- New network access, remote execution, or third-party integration must be user-visible,
-  justified, and documented (settings UI + README/spec).
+- Update `README.md` or the relevant docs file when a change affects setup, configuration, supported providers, customization behavior, or user workflows.
+- For documentation about customization, clearly distinguish between repository/editor customization files and Sidekick's own vault-local runtime configuration.
