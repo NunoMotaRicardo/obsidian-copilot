@@ -38,6 +38,13 @@ This repository is the source for Sidekick, an Obsidian Community Plugin that br
 - Keep user-facing copy concise, clear, and in sentence case.
 - For editor features, rely on Obsidian's CodeMirror runtime and preserve the externalized CodeMirror dependency model.
 
+## Development workflow
+
+- Repository authoring aids live under `.agents/` (the `sidekick-coder` agent plus skills such as `sidekick-build`, `sidekick-lite`, `sidekick-pr-review`, `deploy-test`, and `release`). They are for developing this plugin, not part of the Sidekick runtime.
+- Technical contracts live in `specs/` (start at `specs/00-architecture.md`); product decisions and guides live in `wiki/`. Work items are GitHub issues on `NunoMotaRicardo/obsidian-copilot`.
+- There is no automated test runner. Verify with `npm run build`, `npm run lint`, and the `deploy-test` skill.
+- Use `copilot/<slug>` branch names and never merge PRs automatically.
+
 ## Documentation expectations
 
 - Update `README.md` or the relevant docs file when a change affects setup, configuration, supported providers, customization behavior, or user workflows.

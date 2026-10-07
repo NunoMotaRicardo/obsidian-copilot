@@ -1,29 +1,29 @@
 ---
-name: brain-lite
-description: Quick one-pass implementation for a small change — no GitHub issue, no planner, no reviewer, but still build/lint/deploy-test. Opens a draft PR. Use only when the user explicitly asks for the "lite" cycle or invokes /brain-lite.
+name: sidekick-lite
+description: Quick one-pass implementation for a small change — no GitHub issue, no planner, no reviewer, but still build/lint/deploy-test. Opens a draft PR. Use only when the user explicitly asks for the "lite" cycle or invokes /sidekick-lite.
 ---
 
-# /brain-lite "description"
+# /sidekick-lite "description"
 
-A lighter-weight version of `/brain-build` for small, low-risk changes. Skips the GitHub issue,
-the `brain-technical-planner`, and the `brain-reviewer` — but **not** verification. See
+A lighter-weight version of `/sidekick-build` for small, low-risk changes. Skips the GitHub issue,
+the `sidekick-technical-planner`, and the `sidekick-reviewer` — but **not** verification. See
 `wiki/decisions/2026-06-14-github-issue-workflow.md`.
 
-Only run this cycle when the user explicitly asks for "lite" — default to `/brain-build`.
+Only run this cycle when the user explicitly asks for "lite" — default to `/sidekick-build`.
 
 ## Steps
 
-1. Spawn the **brain-coder** agent (foreground, lite mode) with the plain-text description. It:
-   - creates/checks out `claude/<slug>`
+1. Spawn the **sidekick-coder** agent (foreground, lite mode) with the plain-text description. It:
+   - creates/checks out `copilot/<slug>`
    - implements in a single pass
-   - builds, lints, and deploy-tests (`.claude/skills/deploy-test/`) — required even in lite mode,
+   - builds, lints, and deploy-tests (`.agents/skills/deploy-test/`) — required even in lite mode,
      only the issue/reviewer ceremony is skipped
    - updates `specs/<module>.md` if behavior changed
    - commits its work
 
 2. Push and open a **draft** PR:
    ```bash
-   git push -u origin claude/<slug>
+   git push -u origin copilot/<slug>
    gh pr create --draft --title "<title>" --body "<summary of the change>"
    ```
 
@@ -33,4 +33,4 @@ Only run this cycle when the user explicitly asks for "lite" — default to `/br
 - No GitHub issue is created or referenced.
 - Never merge, and never mark the PR ready-for-review automatically — that's the user's call.
 - If the change turns out to be bigger than expected mid-implementation, stop and tell the user it
-  probably needs `/brain-build` instead.
+  probably needs `/sidekick-build` instead.

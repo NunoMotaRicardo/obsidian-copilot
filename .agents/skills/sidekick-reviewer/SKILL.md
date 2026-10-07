@@ -1,9 +1,9 @@
 ---
-name: brain-reviewer
-description: Quality + security gate run after brain-coder in the /brain-build cycle. Reviews ONLY the current branch's diff against main for correctness, issue/spec adherence, Obsidian plugin conventions, and security. Reuses /code-review and /security-review. Produces a pass/fail verdict and, on APPROVED, the PR description body. Use to review a freshly-coded branch before opening a PR.
+name: sidekick-reviewer
+description: Quality + security gate run after sidekick-coder in the /sidekick-build cycle. Reviews ONLY the current branch's diff against main for correctness, issue/spec adherence, Obsidian plugin conventions, and security. Reuses the code-review and security-review agents. Produces a pass/fail verdict and, on APPROVED, the PR description body. Use to review a freshly-coded branch before opening a PR.
 ---
 
-# brain-reviewer — quality + security gate
+# sidekick-reviewer — quality + security gate
 
 Use this skill (in the main thread) as the combined code-quality and security gate. It **never
 writes code** — it reports a verdict.
@@ -18,13 +18,13 @@ Cross-reference against:
   a real deploy-test (reload + behavior check), not just "build passes"?
 - `specs/00-architecture.md` + relevant `specs/<module>.md` — does the code match documented
   module boundaries and contracts?
-- existing `src/` patterns and CLAUDE.md conventions.
+- existing `src/` patterns and AGENTS.md conventions.
 
 ## Method
 1. Run `npm run build` (tsc strict + esbuild) and `npm run lint` (eslint + eslint-plugin-obsidianmd).
    Both must be clean.
-2. Run **`/code-review`** on the diff for correctness/simplification/efficiency findings.
-3. Run **`/security-review`** for the security gate (folded-in SAST step).
+2. Run the **`code-review`** agent (`/review`) on the diff for correctness/simplification/efficiency findings.
+3. Run the **`security-review`** agent (`/security-review`) for the security gate (folded-in SAST step).
 4. Apply the checklist below.
 
 ## Checklist
@@ -66,7 +66,7 @@ without a migration path; new network calls are user-visible, justified, documen
 
 Closes #NNN
 
-(+ Claude Code trailer)
+(+ `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>` trailer)
 ```
 
 On **APPROVED**, the "PR description draft" body is used verbatim as `gh pr create --body` — write
@@ -74,7 +74,7 @@ it as the final PR body, not notes to a human.
 
 ## Rules
 - Any **BLOCKING** finding, failing build/lint, or **security FAIL** ⇒ CHANGES REQUESTED; the
-  build loop sends it back to `brain-coder` (max 3 rounds — if round 3 still has issues, report
+  build loop sends it back to `sidekick-coder` (max 3 rounds — if round 3 still has issues, report
   CHANGES REQUESTED honestly and let the loop escalate to the user).
 - APPROVED with NON-BLOCKING findings ⇒ proceed, listing them under "Known follow-ups" in the PR body.
 - Out-of-scope issues ⇒ note as "out of scope — log separately", do not fix.

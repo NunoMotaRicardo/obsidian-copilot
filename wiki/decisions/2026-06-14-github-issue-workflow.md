@@ -1,8 +1,8 @@
-# GitHub-native issue workflow for the Claude Code dev agents
+# GitHub-native issue workflow for the dev agents
 
 ## Context
 
-The `.claude/agents/sidekick-*` pipeline (analyst → technical-planner → coder → reviewer)
+The `.agents/` sidekick-* pipeline (analyst → technical-planner → coder → reviewer)
 originally assumed local `issues/NNNN-*.md` files as the work-item source of truth, mirroring
 this repo's GitHub issues on `NunoMotaRicardo/obsidian-copilot`. Commit `ad623af` deleted the
 local mirror (`issues/0001-0008`). Checking GitHub showed issues #1-#8 were already tracked
@@ -12,20 +12,20 @@ duplication, not lost work.
 ## Decision
 
 GitHub issues on `NunoMotaRicardo/obsidian-copilot` are the **single source of truth** for
-Claude Code dev-agent work items. There is no local `issues/` folder, and
-`.claude/skills/issue-workflow/` is retired. Two orchestrating skills drive the work:
+dev-agent work items. There is no local `issues/` folder, and
+`issue-workflow` skill is retired. Two orchestrating skills drive the work:
 
 - **`/sidekick-build <#N | "description">`** — full cycle. sidekick-technical-planner first
   audits the request and checks it's feasible as one cycle (one coder pass + up to 3
   coder↔reviewer rounds); if not, it splits the work into sub-issues and stops for the user to
   pick one. Otherwise: label the issue `in-progress`, run sidekick-coder, then
   sidekick-reviewer; loop on CHANGES REQUESTED (max 3 rounds — after the 3rd, stop and report
-  the branch + findings instead of looping forever). On APPROVED, push `claude/<slug>` and
+  the branch + findings instead of looping forever). On APPROVED, push `copilot/<slug>` and
   open a ready PR (`Closes #N`, body = reviewer's draft).
 - **`/sidekick-lite "description"`** — quick fixes. No issue, no planner, no reviewer.
   sidekick-coder implements + still runs `deploy-test` (the only thing skipped is the
   issue/reviewer ceremony, not verification) + updates specs if behavior changed, then pushes
-  `claude/<slug>` and opens a **draft** PR for the user to look at.
+  `copilot/<slug>` and opens a **draft** PR for the user to look at.
 
 Status tracking uses GitHub issue state (open/closed) plus an `in-progress` label (created on
 first use) for "actively being worked".
@@ -56,4 +56,4 @@ opened.
   `in-progress` (create via `gh label create` if it doesn't exist) for active work.
 - Issue body: Summary, Acceptance Criteria, Technical Notes (link `specs/<module>.md`),
   `Depends on` / `Part of #N` for slices.
-- Branch naming stays `claude/<slug>` (matches existing PR history, e.g. PRs #9-#12).
+- Branch naming is `copilot/<slug>` (earlier PRs #9-#12 used `claude/<slug>`).

@@ -1,12 +1,12 @@
 ---
-name: brain-pr-review
-description: Review a GitHub pull request for inconsistencies, security, code quality, and against the issue that originated it. Optionally implement fixes, commit them, and comment on the PR. Use when asked to review or verify a PR (e.g. /brain-pr-review <#N>).
+name: sidekick-pr-review
+description: Review a GitHub pull request for inconsistencies, security, code quality, and against the issue that originated it. Optionally implement fixes, commit them, and comment on the PR. Use when asked to review or verify a PR (e.g. /sidekick-pr-review <#N>).
 ---
 
-# /brain-pr-review <#N>
+# /sidekick-pr-review <#N>
 
 Checks out, reviews, and updates an existing GitHub pull request on
-`NunoMotaRicardo/obsidian-claude-brain` (the repo `origin` points to). This is a unified workflow
+`NunoMotaRicardo/obsidian-copilot` (the repo `origin` points to). This is a unified workflow
 combining review, feedback, and targeted fixes, run directly in the main thread.
 
 ## Steps
@@ -44,11 +44,11 @@ combining review, feedback, and targeted fixes, run directly in the main thread.
      (tabs, single quotes, etc.).
 
 5. **Generate Review Report** — Write a comprehensive review report to a local markdown artifact:
-   - Path: `<appDataDir>/brain/<conversation-id>/pr_<#N>_review.md`
+   - Path: `<tmp>/sidekick/pr_<#N>_review.md` (`<tmp>` = the OS temp directory; keep it out of the repo)
    - Structure: Inconsistencies & UX Gaps, Security Review, Code Quality & Maintenance, Proposed Fixes.
 
 6. **Post Review Comments** — Post a summary of the findings as a comment on the GitHub PR:
-   - Create a scratch comment file at `<appDataDir>/brain/<conversation-id>/scratch/pr_<#N>_comment.md`.
+   - Create a scratch comment file at `<tmp>/sidekick/pr_<#N>_comment.md`.
    - Post it using:
      ```bash
      gh pr comment <#N> -F "<scratch-comment-filepath>"
@@ -57,7 +57,7 @@ combining review, feedback, and targeted fixes, run directly in the main thread.
 7. **Implement & Verify Fixes** (If requested or needed):
    - Implement target refactoring and fixes locally on the checked-out PR branch.
    - Run `npm run lint` and `npm run build` to ensure they compile clean.
-   - Run `deploy-test` (`.claude/skills/deploy-test/`) to verify in the actual Obsidian vault.
+   - Run `deploy-test` (`.agents/skills/deploy-test/`) to verify in the actual Obsidian vault.
    - Stage and commit the fixes:
      ```bash
      git add <modified-files>

@@ -52,7 +52,7 @@ through `@github/copilot-sdk` over JSON-RPC.
 - Specs in `specs/` describe target behavior per module. Update the spec in the same change
   that alters behavior.
 - Work items are tracked as GitHub issues on `NunoMotaRicardo/obsidian-copilot` (`gh issue
-  list/view/create/edit`); `in-progress` marks active work. See `.claude/skills/sidekick-build/`
-  and `.claude/skills/sidekick-lite/`.
+  list/view/create/edit`); `in-progress` marks active work. See `.agents/skills/sidekick-build/`
+  and `.agents/skills/sidekick-lite/`.
 - Build: `npm run build` (tsc typecheck + esbuild bundle). Deploy/verify: see
-  `.claude/skills/deploy-test/`.
+  `.agents/skills/deploy-test/`.

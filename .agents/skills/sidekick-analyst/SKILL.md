@@ -1,16 +1,16 @@
 ---
-name: brain-analyst
-description: Synthesize grill-me/brainstorm elicitation into durable product/functional decision records under wiki/decisions/, and keep the wiki/ guides accurate, cross-linked, and proposing further reading (librarian mode). Use in the main thread after an elicitation, or when asked to write up a decision, update a wiki guide, or organize wiki/.
+name: sidekick-analyst
+description: Synthesize brainstorm elicitation into durable product/functional decision records under wiki/decisions/, and keep the wiki/ guides accurate, cross-linked, and proposing further reading (librarian mode). Use in the main thread after an elicitation, or when asked to write up a decision, update a wiki guide, or organize wiki/.
 ---
 
-# brain-analyst — wiki knowledge base
+# sidekick-analyst — wiki knowledge base
 
 Use this skill to turn discussion into durable, well-organized knowledge under `wiki/`. Unlike
-`.claude/` memory, `wiki/` is version-controlled and shared with anyone reading the repo. This
+agent session memory, `wiki/` is version-controlled and shared with anyone reading the repo. This
 runs **in the main thread** with warm context — the live one-question-at-a-time interview happens
-via `grill-me`/`brainstorm`; this skill is the **writing/synthesis** that follows. For a heavy
+via the `brainstorm` skill; this skill is the **writing/synthesis** that follows. For a heavy
 read-only sweep of many `wiki/` files (e.g. fixing stale cross-links repo-wide), spawn a generic
-`Explore` agent and synthesize its findings here.
+`explore` agent and synthesize its findings here.
 
 > **Naming note:** `wiki/` is plugin-repo documentation for *developing* the plugin. Don't confuse
 > it with the vault-local `sidekick/` customization folder (`agents/`, `prompts/`, `skills/`,
@@ -26,8 +26,8 @@ wiki/
   images/       # screenshots referenced from guides
 ```
 
-Never write to `specs/`, GitHub issues, or `src/` — those belong to `brain-technical-planner` and
-`brain-coder`.
+Never write to `specs/`, GitHub issues, or `src/` — those belong to `sidekick-technical-planner` and
+`sidekick-coder`.
 
 ## Mode A — Functional analysis (synthesis)
 
@@ -37,7 +37,7 @@ Write one file per significant decision: `wiki/decisions/<YYYY-MM-DD>-<slug>.md`
 # <Decision title>
 
 ## Context
-What prompted this — feature idea, fork-vs-upstream tradeoff, SDK change, user pain point.
+What prompted this — feature idea, upstream-vs-local tradeoff, SDK change, user pain point.
 
 ## Decision
 What we decided, in plain language a non-engineer could follow.
@@ -52,7 +52,7 @@ What's explicitly out of scope for now.
 Unresolved items.
 
 ## Hand-off Notes for the Technical Planner
-The functional intent that brain-technical-planner must turn into specs/ updates and GitHub
+The functional intent that sidekick-technical-planner must turn into specs/ updates and GitHub
 issues (no technical design here — module names, file paths, or API shapes are the planner's job).
 ```
 
@@ -64,8 +64,8 @@ the decision record.
 - Keep `wiki/*.md` guides accurate as the plugin evolves: when `src/configLoader.ts`, the
   customization model, or setup steps change, update the relevant guides.
 - For new topics (an Obsidian API change, an SDK feature, a provider quirk), write/update a guide:
-  what it is, why it matters for this fork, and links to authoritative sources.
-- Proactively suggest further reading (WebSearch/WebFetch) under a "## Suggested reading" section.
+  what it is, why it matters for this plugin, and links to authoritative sources.
+- Proactively suggest further reading (web search/fetch) under a "## Suggested reading" section.
 - Keep `wiki/` cross-linked and navigable; fix stale links and references to renamed files/modules.
 
 ## Rules
@@ -75,4 +75,4 @@ the decision record.
 - Never invent results not supported by a source; write "unable to determine" instead.
 - Never include secrets/API keys/tokens; use placeholders.
 - When synthesis is complete, list the `wiki/` files written and hand functional intent to
-  `brain-technical-planner`.
+  `sidekick-technical-planner`.
