@@ -29,10 +29,6 @@ export interface SidekickSettings {
 	toolApproval: 'ask' | 'allow';
 	/** Model ID used for inline editor operations (context menu). Empty = SDK default. */
 	inlineModel: string;
-	/** Enable ghost-text autocomplete in the editor. */
-	autocompleteEnabled: boolean;
-	/** Show the inline Sidekick icon on the active editor line. */
-	inlineIconEnabled: boolean;
 	/** Provider preset for BYOK. 'github' uses built-in auth. */
 	providerPreset: 'github' | 'openai' | 'azure' | 'anthropic' | 'ollama' | 'foundry-local' | 'other-openai';
 	/** Base URL for the BYOK provider endpoint. */
@@ -49,8 +45,6 @@ export interface SidekickSettings {
 	providerMaxPromptTokens: number;
 	/** Request timeout in seconds for BYOK providers (0 = SDK default 60s). */
 	providerRequestTimeout: number;
-	/** Persisted form defaults for the Edit modal. */
-	editModalDefaults?: EditModalDefaults;
 	/** Custom display names for sessions, keyed by SDK sessionId. */
 	sessionNames?: Record<string, string>;
 	/** Last-fired timestamps for trigger deduplication, keyed by trigger name. */
@@ -106,33 +100,6 @@ export interface SidekickSettings {
 	telegramDefaultAgent: string;
 }
 
-/** Persisted preferences for the Edit modal form. */
-export interface EditModalDefaults {
-	task: string;
-	adjustTask: boolean;
-	tone: string;
-	adjustTone: boolean;
-	format: string;
-	adjustFormat: boolean;
-	length: number;
-	adjustLength: boolean;
-	choices: number;
-	editPrompt: string;
-}
-
-export const DEFAULT_EDIT_MODAL: EditModalDefaults = {
-	task: 'Rewrite',
-	adjustTask: false,
-	tone: 'Professional',
-	adjustTone: false,
-	format: 'Single paragraph',
-	adjustFormat: false,
-	length: 5,
-	adjustLength: false,
-	choices: 4,
-	editPrompt: '',
-};
-
 export const DEFAULT_SETTINGS: SidekickSettings = {
 	copilotType: 'local',
 	copilotLocation: DEFAULT_COPILOT_LOCATION,
@@ -142,8 +109,6 @@ export const DEFAULT_SETTINGS: SidekickSettings = {
 	sidekickFolder: 'sidekick',
 	toolApproval: 'ask',
 	inlineModel: '',
-	autocompleteEnabled: false,
-	inlineIconEnabled: false,
 	providerPreset: 'github',
 	providerBaseUrl: '',
 	providerApiKey: '',
@@ -302,7 +267,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 		if (!this.app.vault.getAbstractFileByPath(toolsFolder)) {
 			const warning = containerEl.createDiv({cls: 'sidekick-settings-warning'});
 			warning.createEl('p', {
-				text: 'Sidekick folder is not initialized. Go to the capabilities tab to configure and initialize it.',
+				text: 'Copilot folder is not initialized. Go to the capabilities tab to configure and initialize it.',
 			});
 		}
 
@@ -826,7 +791,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 		const capPanel = panels['capabilities']!;
 
 		new Setting(capPanel)
-			.setName('Sidekick folder')
+			.setName('Copilot folder')
 			.setDesc('Vault folder for agents, skills, tools and triggers.')
 			.addText(text => text
 				.setPlaceholder('Ex: sidekick')
@@ -834,7 +799,7 @@ export class SidekickSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					const sanitized = value.trim().replace(/\.\./g, '');
 					if (!sanitized || /[;|&`$(){}]/.test(sanitized)) {
-						new Notice('Sidekick folder name is invalid.');
+						new Notice('Copilot folder name is invalid.');
 						return;
 					}
 					this.plugin.settings.sidekickFolder = sanitized;
@@ -886,30 +851,10 @@ export class SidekickSettingTab extends PluginSettingTab {
 							await this.app.vault.create(triggerPath, SAMPLE_TRIGGER_CONTENT);
 						}
 
-						new Notice('Sidekick folder initialized with sample agent, skill, prompt, trigger, and mcp.json.');
+						new Notice('Copilot folder initialized with sample agent, skill, prompt, trigger, and mcp.json.');
 					} catch (e) {
 						new Notice(`Failed to initialize sidekick folder: ${String(e)}`);
 					}
-				}));
-
-		new Setting(capPanel)
-			.setName('Enable ghost-text autocomplete')
-			.setDesc('Show inline suggestions as you type (uses the inline operations model).')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.autocompleteEnabled)
-				.onChange(async (value) => {
-					this.plugin.settings.autocompleteEnabled = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(capPanel)
-			.setName('Show inline Sidekick icon')
-			.setDesc('Show the Sidekick icon in the editor gutter next to the active line.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.inlineIconEnabled)
-				.onChange(async (value) => {
-					this.plugin.settings.inlineIconEnabled = value;
-					await this.plugin.saveSettings();
 				}));
 
 		new Setting(capPanel)

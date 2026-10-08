@@ -1,6 +1,6 @@
-# Sidekick repository instructions
+# Copilot repository instructions
 
-This repository is the source for Sidekick, an Obsidian Community Plugin that brings GitHub Copilot and BYOK AI providers into Obsidian through a configurable sidebar, editor actions, triggers, search, and optional bot integrations.
+This repository is the source for Copilot, an Obsidian Community Plugin by Nuno Ricardo that brings GitHub Copilot and BYOK AI providers into Obsidian through a configurable sidebar, editor actions, triggers, search, and optional bot integrations. Keep the existing `sidekick` plugin id, settings keys, and vault customization folder for compatibility.
 
 ## Core expectations
 
@@ -43,6 +43,10 @@ This repository is the source for Sidekick, an Obsidian Community Plugin that br
 - Repository authoring aids live under `.agents/` (the `sidekick-coder` agent plus skills such as `sidekick-build`, `sidekick-lite`, `sidekick-pr-review`, `deploy-test`, and `release`). They are for developing this plugin, not part of the Sidekick runtime.
 - Technical contracts live in `specs/` (start at `specs/00-architecture.md`); product decisions and guides live in `wiki/`. Work items are GitHub issues on `NunoMotaRicardo/obsidian-copilot`.
 - There is no automated test runner. Verify with `npm run build`, `npm run lint`, and the `deploy-test` skill.
+- Deploy development builds only to `C:\dev\obsidian-test-vault\.obsidian\plugins\sidekick\`, never to a personal or production vault. Copy `main.js`, `manifest.json`, and `styles.css` only after a successful build and lint.
+- Target the test vault explicitly in every Obsidian CLI command: `obsidian vault="obsidian-test-vault" plugin:reload id=sidekick`. Check `dev:errors` and inspect the changed UI or behavior in that same vault. If the CLI is unavailable, report that verification needs a manual reload; do not silently target another vault.
+- On Windows, if the CLI is not on PATH, use `& 'C:\Program Files\Obsidian\Obsidian.com' vault="obsidian-test-vault" ...`.
+- The editor context menu adds only **Copilot edit** when text is selected or **Copilot insert** at the cursor otherwise. There is no autocomplete, gutter action button, sidebar edit button, or advanced edit form.
 - Use `copilot/<slug>` branch names and never merge PRs automatically.
 
 ## Documentation expectations

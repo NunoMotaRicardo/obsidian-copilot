@@ -148,7 +148,7 @@ export class TelegramBotService {
 				}
 			} catch (e) {
 				if (!this.polling) break; // disconnect was called
-				console.error('Sidekick Telegram: poll error', e);
+				console.error('Copilot Telegram: poll error', e);
 				// Back off on error
 				await new Promise(r => setTimeout(r, 5000));
 			}
@@ -177,14 +177,14 @@ export class TelegramBotService {
 
 		// Handle /start command
 		if (text === '/start') {
-			await this.sendReply(chatId, threadId, `Hello! I'm your Sidekick assistant. Send me a message and I'll help you.`);
+			await this.sendReply(chatId, threadId, `Hello! I'm your Copilot assistant. Send me a message and I'll help you.`);
 			return;
 		}
 
 		// Handle /help command
 		if (text === '/help') {
 			await this.sendReply(chatId, threadId,
-				`I'm your Obsidian Sidekick bot. Here's what you can do:\n` +
+				`I'm your Obsidian Copilot bot. Here's what you can do:\n` +
 				`• Send me any text message to chat\n` +
 				`• Attach photos, documents, or audio\n` +
 				`• Use forum topics for parallel conversations\n` +
@@ -274,7 +274,7 @@ export class TelegramBotService {
 			}
 
 		} catch (e) {
-			console.error('Sidekick Telegram: message handling error', e);
+			console.error('Copilot Telegram: message handling error', e);
 			// If session is broken, clear it so next message creates a fresh one
 			if (String(e).includes('Session not found')) {
 				entry.sessionId = '';
@@ -523,7 +523,7 @@ export class TelegramBotService {
 				const basePath = this.getVaultBasePath();
 				results.push({name: safeName, path: `${basePath}/${filePath}`});
 			} catch (e) {
-				console.error(`Sidekick Telegram: failed to download file ${file.name}`, e);
+				console.error(`Copilot Telegram: failed to download file ${file.name}`, e);
 			}
 		}
 
@@ -569,7 +569,7 @@ export class TelegramBotService {
 			this.skills = skills;
 			this.mcpServers = mcpServers;
 		} catch (e) {
-			console.error('Sidekick Telegram: failed to reload configs', e);
+			console.error('Copilot Telegram: failed to reload configs', e);
 		}
 	}
 }

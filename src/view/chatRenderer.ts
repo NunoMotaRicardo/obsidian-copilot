@@ -751,7 +751,7 @@ export function installChatRenderer(ViewClass: {prototype: unknown}): void {
 		const welcome = this.chatContainer.createDiv({cls: 'sidekick-welcome'});
 		const icon = welcome.createDiv({cls: 'sidekick-welcome-icon'});
 		setIcon(icon, 'brain');
-		welcome.createEl('h3', {text: 'Sidekick'});
+		welcome.createEl('h3', {text: 'Copilot'});
 		welcome.createEl('p', {
 			text: 'Your AI-powered second brain. Select an agent, choose a model, configure tools and get the job done!',
 			cls: 'sidekick-welcome-desc',

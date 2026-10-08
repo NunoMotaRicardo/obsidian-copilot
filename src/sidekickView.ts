@@ -190,7 +190,7 @@ export class SidekickView extends ItemView {
 		return SIDEKICK_VIEW_TYPE;
 	}
 	getDisplayText(): string {
-		return 'Sidekick';
+		return 'Copilot';
 	}
 	getIcon(): string {
 		return 'brain';
@@ -417,7 +417,7 @@ export class SidekickView extends ItemView {
 				}
 			}
 		} catch (e) {
-			console.error('Sidekick: failed to load configs', e);
+			console.error('Copilot: failed to load configs', e);
 		} finally {
 			this.configLoading = false;
 			this.configLoadedAt = Date.now();
@@ -455,7 +455,7 @@ export class SidekickView extends ItemView {
 			const base = normalizePath(this.plugin.settings.sidekickFolder);
 			if (!filePath.startsWith(base + '/')) return;
 			if (this.configLoading || (Date.now() - this.configLoadedAt < 2_000)) return;
-			debugTrace(`Sidekick: config file changed: ${filePath}`);
+			debugTrace(`Copilot: config file changed: ${filePath}`);
 			if (this.configRefreshTimer) clearTimeout(this.configRefreshTimer);
 			this.configRefreshTimer = setTimeout(() => {
 				this.configRefreshTimer = null;

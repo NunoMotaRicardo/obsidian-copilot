@@ -15,9 +15,8 @@ Source: `src/settings.ts` — settings interface, defaults, and the settings tab
   list directly (`fetchProviderModels()` in `src/providerModels.ts`) rather than creating an
   SDK session — see "Models tab: Test / model discovery" below. The `github` preset's Copilot
   tab "Client type" Test button is unchanged (still `createSession` + `ping`/disconnect).
-- **Sidekick** — inline-operations model, sidekick folder name, tools approval (allow/ask),
-  ghost-text toggle, inline Sidekick icon toggle (`inlineIconEnabled`, default off — gutter
-  icon next to the active line, issue 0008), reasoning effort (`string`, `''` = model default;
+- **Copilot** — inline-operations model, customization folder name (default `sidekick`), tools approval (allow/ask),
+  reasoning effort (`string`, `''` = model default;
   validated against the model's `supportedReasoningEfforts`), reasoning summary
   (`'' | none | concise | detailed`), infinite sessions toggle
   (`infiniteSessionsEnabled: boolean`, default `true` — matches SDK default; issue #5),

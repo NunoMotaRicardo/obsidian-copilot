@@ -1,20 +1,22 @@
-# Sidekick
+# Copilot
 
-![Obsidian Sidekick](./docs/images/banner.png)
+An Obsidian plugin by **Nuno Ricardo**. The internal plugin id and default customization folder remain `sidekick` for compatibility with existing installations.
+
+![Obsidian Copilot](./docs/images/banner.png)
 
 Your AI-powered second brain inside Obsidian. Chat with agents, run tools, fire triggers, search your vault with AI, and transform text — all without leaving your notes.
 
-Sidekick connects to GitHub Copilot or your own AI provider and gives you a fully configurable assistant panel with agents, skills, MCP tool servers, prompt templates, triggers, ghost-text autocomplete, and an AI-powered editor.
+Copilot connects to GitHub Copilot or your own AI provider and gives you a fully configurable assistant panel with agents, skills, MCP tool servers, prompt templates, triggers, and instruction-based text editing.
 
 ---
 
 ## Overview
 
-The Sidekick panel sits in the right sidebar alongside your notes. Pick an agent, toggle skills and tools, then chat — responses stream in with full Markdown rendering and collapsible tool-call details.
+The Copilot panel sits in the right sidebar alongside your notes. Pick an agent, toggle skills and tools, then chat — responses stream in with full Markdown rendering and collapsible tool-call details.
 
-![Obsidian Sidekick Screenshot](./docs/images/screenshot.png)
+![Obsidian Copilot Screenshot](./docs/images/screenshot.png)
 
-**What you see above:** the chat tab with an active agent, model selector, reasoning toggle, and a streamed response. The session sidebar on the right lists past conversations. Context-menu actions, ghost-text autocomplete, triggers, and search all work from the same panel.
+**What you see above:** the chat tab with an active agent, model selector, reasoning toggle, and a streamed response. The session sidebar on the right lists past conversations. Context-menu actions, triggers, and search all work from the same panel.
 
 > [!CAUTION]
 > **With great power comes great responsibility.** This plugin can execute tools, run CLI commands, and modify your files on your behalf. This software is provided as open-source without any warranty or support. Use at your own risk.
@@ -24,13 +26,13 @@ The Sidekick panel sits in the right sidebar alongside your notes. Pick an agent
 ## Quick start
 
 > [!IMPORTANT]
-> Sidekick 1.2.2+ requires Obsidian Desktop 1.13.0 or newer (Node.js 20.19+ runtime) when using `@github/copilot-sdk@1.x`.
+> Copilot 1.2.2+ requires Obsidian Desktop 1.13.0 or newer (Node.js 20.19+ runtime) when using `@github/copilot-sdk@1.x`.
 
 1. **Install** — Either:
-   - **Via BRAT** — Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) community plugin, then add `https://github.com/vieiraae/obsidian-sidekick` as a beta plugin. BRAT handles downloads and updates automatically.
-   - **Manual** — Download `main.js`, `styles.css`, and `manifest.json` from the [latest release](https://github.com/vieiraae/obsidian-sidekick/releases/latest) into `<YourVault>/.obsidian/plugins/sidekick/`. Then reload Obsidian and enable **Sidekick** in **Settings → Community plugins**.
-2. **Pick a provider** — Open **Settings → Sidekick**. Use **GitHub (built-in)** with a Copilot subscription ([set up the CLI](#setting-up-the-copilot-cli)), or choose a [BYOK provider](#byok-providers) (OpenAI, Anthropic, Ollama, etc.). Click **Test** to verify. With Ollama or Microsoft Foundry Local you can work offline.
-3. **Initialize** — Under **Sidekick settings**, set a folder name (default: `sidekick`) and click **Initialize** to scaffold the config structure:
+   - **Via BRAT** — Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) community plugin, then add `https://github.com/NunoMotaRicardo/obsidian-copilot` as a beta plugin. BRAT handles downloads and updates automatically.
+   - **Manual** — Download `main.js`, `styles.css`, and `manifest.json` from the [latest release](https://github.com/NunoMotaRicardo/obsidian-copilot/releases/latest) into `<YourVault>/.obsidian/plugins/sidekick/`. Then reload Obsidian and enable **Copilot** in **Settings → Community plugins**.
+2. **Pick a provider** — Open **Settings → Copilot**. Use **GitHub (built-in)** with a Copilot subscription ([set up the CLI](#setting-up-the-copilot-cli)), or choose a [BYOK provider](#byok-providers) (OpenAI, Anthropic, Ollama, etc.). Click **Test** to verify. With Ollama or Microsoft Foundry Local you can work offline.
+3. **Initialize** — Under **Copilot settings**, set a folder name (default: `sidekick`) and click **Initialize** to scaffold the config structure:
    ```
    sidekick/
      agents/    ← *.agent.md persona files
@@ -39,7 +41,7 @@ The Sidekick panel sits in the right sidebar alongside your notes. Pick an agent
      prompts/   ← *.prompt.md slash commands
      triggers/  ← *.trigger.md automated tasks
    ```
-4. **Open Sidekick** — Click the **brain** icon in the ribbon, or run **Open Sidekick** from the command palette.
+4. **Open Copilot** — Click the **brain** icon in the ribbon, or run **Copilot: Open chat** from the command palette.
 
 You're ready. Start chatting, or read on to unlock every feature.
 
@@ -48,7 +50,7 @@ You're ready. Start chatting, or read on to unlock every feature.
 ## Table of contents
 
 - [Setting up the Copilot CLI](#setting-up-the-copilot-cli)
-- [The Sidekick panel](#the-sidekick-panel)
+- [The Copilot panel](#the-copilot-panel)
 - [Agents](#agents)
 - [Models](#models)
 - [Skills](#skills)
@@ -67,7 +69,7 @@ You're ready. Start chatting, or read on to unlock every feature.
 
 ## Setting up the Copilot CLI
 
-If you chose the **GitHub (built-in)** provider, Sidekick talks to GitHub Copilot through its CLI. If you have [GitHub Copilot in VS Code](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot), the CLI is already installed.
+If you chose the **GitHub (built-in)** provider, Copilot talks to GitHub Copilot through its CLI. If you have [GitHub Copilot in VS Code](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot), the CLI is already installed.
 
 **Check it works:**
 
@@ -89,7 +91,7 @@ copilot auth login    # browser-based flow
 copilot auth status   # confirm you're logged in
 ```
 
-**Configure in Sidekick** — Go to **Settings → Sidekick → GitHub Copilot Client**:
+**Configure in Copilot** — Go to **Settings → Copilot → GitHub Copilot Client**:
 
 - **Local CLI** — Set the path to the binary (leave blank if it's on `PATH`). Toggle **Use Logged-in User** or supply a **GitHub Token**.
 - **Remote CLI** — Enter the URL of a running CLI server and a **GitHub Token**.
@@ -98,7 +100,7 @@ Click **Test**.
 
 ---
 
-## The Sidekick panel
+## The Copilot panel
 
 The panel lives in the right sidebar and has three tabs: **Chat**, **Triggers**, and **Search**.
 
@@ -204,7 +206,7 @@ With GitHub Copilot, all built-in models are available out of the box — or bri
 
 ### BYOK providers
 
-Use your own API key instead of (or alongside) GitHub Copilot. Go to **Settings → Sidekick → Models** and pick a provider:
+Use your own API key instead of (or alongside) GitHub Copilot. Go to **Settings → Copilot → Models** and pick a provider:
 
 | Provider | Type | Default endpoint |
 |----------|------|-----------------|
@@ -249,7 +251,7 @@ Browse and download additional community skills from [skills.sh](https://skills.
 
 ## MCP Tools (MCP servers)
 
-Configure external tool servers in `sidekick/tools/mcp.json`. Sidekick supports **stdio** (local process) and **HTTP/SSE** (remote) MCP servers.
+Configure external tool servers in `sidekick/tools/mcp.json`. Copilot supports **stdio** (local process) and **HTTP/SSE** (remote) MCP servers.
 
 ### Example: `mcp.json`
 
@@ -311,7 +313,7 @@ This follows the [VS Code MCP input variable](https://code.visualstudio.com/docs
 | `description` | Yes | Prompt text shown to the user |
 | `password` | No | Mask input and store securely (`false` by default) |
 
-Sidekick prompts for missing values at load time. Manage stored values in **Settings → Sidekick → MCP input variables**. Password values are kept in Obsidian's local storage and never written to `data.json`.
+Copilot prompts for missing values at load time. Manage stored values in **Settings → Copilot → MCP input variables**. Password values are kept in Obsidian's local storage and never written to `data.json`.
 
 ### Additional MCP tools
 
@@ -381,7 +383,7 @@ Add the servers to your `sidekick/tools/mcp.json`:
 
 ### Tool approval
 
-In **Settings → Sidekick → Tools approval**:
+In **Settings → Copilot → Tools approval**:
 
 - **Allow** — Tool calls run automatically.
 - **Ask** — Confirm each tool call in a modal.
@@ -390,7 +392,7 @@ In **Settings → Sidekick → Tools approval**:
 
 ## Browser use
 
-Give Sidekick control of a real browser — navigate pages, click elements, fill forms, take screenshots, and extract content — all driven by AI through the Playwright MCP server.
+Give Copilot control of a real browser — navigate pages, click elements, fill forms, take screenshots, and extract content — all driven by AI through the Playwright MCP server.
 
 ### 1. Install the browser extension
 
@@ -429,13 +431,13 @@ Supported values: `chrome` (default), `msedge`.
 
 ### 3. Use it
 
-Open the browser with the extension active, then ask Sidekick to browse, search, or interact with web pages. The AI will use the Playwright tools to control the browser on your behalf.
+Open the browser with the extension active, then ask Copilot to browse, search, or interact with web pages. The AI will use the Playwright tools to control the browser on your behalf.
 
 ---
 
 ## CLI Tools
 
-Sidekick can invoke command-line tools directly from the chat — any CLI available on your system can be called by the AI as part of a conversation. This is useful for automating workflows that involve external services or local utilities.
+Copilot can invoke command-line tools directly from the chat — any CLI available on your system can be called by the AI as part of a conversation. This is useful for automating workflows that involve external services or local utilities.
 
 ### Google Workspace CLI
 
@@ -445,7 +447,7 @@ To get the most out of it, add the companion [Google Workspace CLI skills](https
 
 ### Obsidian CLI
 
-The [Obsidian CLI](https://help.obsidian.md/cli) can also be invoked from the chat — an inception effect where Sidekick drives Obsidian itself. This is useful for searching tags, querying properties, listing tasks, and performing vault operations that go beyond what the AI can do with file access alone.
+The [Obsidian CLI](https://help.obsidian.md/cli) can also be invoked from the chat — an inception effect where Copilot drives Obsidian itself. This is useful for searching tags, querying properties, listing tasks, and performing vault operations that go beyond what the AI can do with file access alone.
 
 You can add the [`obsidian-cli` skill](https://github.com/kepano/obsidian-skills) to your `sidekick/skills/` folder to enable full command reference.
 
@@ -510,11 +512,11 @@ A `cron` and/or `glob` must be configured. Trigger sessions appear in the sideba
 
 ## Bots
 
-Connect external messaging platforms to Sidekick so you can chat with your agents from anywhere — not just inside Obsidian. Each bot type runs as a background service, forwarding messages to the AI and sending replies back.
+Connect external messaging platforms to Copilot so you can chat with your agents from anywhere — not just inside Obsidian. Each bot type runs as a background service, forwarding messages to the AI and sending replies back.
 
 ### Telegram
 
-Turn a Telegram bot into a front-end for your Sidekick agents. Messages you send in Telegram are processed by Sidekick using your configured agent, model, skills, and MCP tools — then the response is sent back to the chat.
+Turn a Telegram bot into a front-end for your Copilot agents. Messages you send in Telegram are processed by Copilot using your configured agent, model, skills, and MCP tools — then the response is sent back to the chat.
 
 #### 1. Create a Telegram bot
 
@@ -522,9 +524,9 @@ Turn a Telegram bot into a front-end for your Sidekick agents. Messages you send
 2. Send `/newbot` and follow the prompts to choose a name and username.
 3. BotFather gives you a **bot token** — copy it.
 
-#### 2. Configure in Sidekick
+#### 2. Configure in Copilot
 
-Go to **Settings → Sidekick → Bots**:
+Go to **Settings → Copilot → Bots**:
 
 | Setting | Description |
 |---------|-------------|
@@ -548,12 +550,12 @@ Click **Connect** next to the Telegram heading. The status updates to show your 
 
 #### How it works
 
-- Sidekick uses **long-polling** to receive messages — no webhooks or public URLs needed.
+- Copilot uses **long-polling** to receive messages — no webhooks or public URLs needed.
 - Each Telegram chat (or forum topic) gets its own conversation session with full history.
 - File attachments (photos, documents, audio, video) are downloaded and passed to the AI.
 - The bot supports `/new` to reset the session and `/help` for usage info.
 - All configured MCP tools, skills, and the default agent's system prompt are available.
-- MCP input variables (API keys, etc.) are resolved from your stored values — configure them in **Settings → Sidekick → MCP input variables** before connecting.
+- MCP input variables (API keys, etc.) are resolved from your stored values — configure them in **Settings → Copilot → MCP input variables** before connecting.
 - Use the Sessions App from [VS Code Insiders](https://code.visualstudio.com/insiders/) to review conversation history and see which tools were invoked.
 
 > **Note:** The bot runs only while Obsidian is open and the connection is active.
@@ -564,78 +566,26 @@ Click **Connect** next to the Telegram heading. The status updates to show your 
 
 ### Editor context menu
 
-Right-click in any note → **Sidekick** to access inline AI actions. The menu adapts based on whether you have text selected.
-If you prefer not to see the inline Sidekick icon beside the active line, disable **Show inline Sidekick icon** in **Settings → Sidekick → Capabilities**.
-
-#### With text selected
+Right-click in any note to access a single Copilot action. Obsidian's standard menu items remain unchanged.
 
 | Action | What happens |
 |--------|-------------|
-| **Edit** | Opens the [Edit modal](#edit-modal) with tone, format, and length controls |
-| **Rewrite** | Improves clarity and readability |
-| **Proofread** | Fixes grammar, spelling, and punctuation |
-| **Use synonyms** | Swaps words for variety |
-| **Minor revise** | Polishes without changing meaning |
-| **Major revise** | Significantly reworks structure and flow |
-| **Describe** | Explains what the text conveys |
-| **Answer** | Responds to a question in the text |
-| **Explain** | Breaks down in simple terms |
-| **Expand** | Adds detail and depth |
-| **Summarize** | Creates a concise summary |
-| **Chat with sidekick** | Opens chat with the selection as context |
-| **Autocomplete** | Toggle ghost-text autocomplete |
+| **Copilot edit** | With text selected, describe an edit and replace only that selection |
+| **Copilot insert** | Without a selection, describe new text to insert at the cursor |
 
-Quick actions **replace the selected text** in-place using the **Inline operations model**.
-
-#### Without a selection
-
-| Action | What happens |
-|--------|-------------|
-| **Edit the note** | Opens the Edit modal for the whole note |
-| **Structure and refine** | Restructures and improves the entire note |
-| **Chat with sidekick** | Opens the chat panel |
-| **Autocomplete** | Toggle ghost-text autocomplete |
+Enter your instruction in the small prompt and click **Apply**. Both actions use the **Inline operations model**. If the note changes or closes while the response is being generated, the result is not applied; run the action again. The advanced editing form, sidebar edit button, and autocomplete feature have been removed. Text-transform commands remain available from the command palette.
 
 ---
 
 ### File and folder context menu
 
-Right-click a file or folder in the vault explorer → **Sidekick**.
+Right-click a file or folder in the vault explorer → **Copilot**.
 
-**Markdown files:** Edit the note, Structure and refine, Chat with sidekick, Autocomplete.
+**Markdown files:** Edit the note, Structure and refine, Chat with Copilot.
 
-**Folders:** New note (AI-generated), New summary note (summarizes all notes in the folder), Chat with sidekick.
+**Folders:** New note (AI-generated), New summary note (summarizes all notes in the folder), Chat with Copilot.
 
 **Images:** Insert extracted content below, Replace with extracted content, or Convert to mermaid diagram below — uses AI to pull text from images or generate a Mermaid diagram representing the image.
-
----
-
-### Edit modal
-
-A dedicated modal for fine-grained text transformation. Open it via **Edit** in the context menu.
-
-| Control | Options |
-|---------|---------|
-| **Task** | Rewrite, Proofread, Use synonyms, Minor revise, Major revise, etc. |
-| **Tone** | Professional, Casual, Enthusiastic, Informational, Confident, Technical, Funny |
-| **Format** | Single paragraph, List, Table, Headings, Code blocks, JSON, and more |
-| **Length** | Slider — shorter to longer |
-| **Choices** | How many alternatives to generate |
-| **Edit prompt** | Free-text instruction to guide the transformation |
-
-Each control can be toggled on/off individually. Preview alternatives and pick the one you want.
-
----
-
-### Ghost-text autocomplete
-
-Get inline AI suggestions as you type — like GitHub Copilot, but for your notes.
-
-1. Enable in **Settings → Sidekick → Enable ghost-text autocomplete**.
-2. Start typing in any note. Suggestions appear as dimmed text ahead of your cursor.
-3. **Tab** to accept, **Escape** to dismiss, **double-click** to accept.
-
-Uses the **Inline operations model**. Works with all providers.
 
 ---
 
@@ -647,7 +597,7 @@ Limit what the AI can see. Click the **folder** icon in the chat input bar to op
 
 ## Settings reference
 
-**Settings → Sidekick**
+**Settings → Copilot**
 
 ### GitHub Copilot Client
 
@@ -670,14 +620,13 @@ Limit what the AI can see. Click the **folder** icon in the chat input bar to op
 | **Bearer token** | *(empty)* | `Authorization` header |
 | **Wire API** | Completions | `Completions` or `Responses` |
 
-### Sidekick settings
+### Copilot settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **Inline operations model** | Default | Model for context-menu actions and autocomplete |
-| **Sidekick folder** | `sidekick` | Root folder for agents, skills, tools, prompts, triggers |
+| **Inline operations model** | Default | Model for context-menu edits, insertions, and other editor commands |
+| **Copilot folder** | `sidekick` | Root folder for agents, skills, tools, prompts, triggers |
 | **Tools approval** | Ask | `Allow` (auto) or `Ask` (confirm each call) |
-| **Ghost-text autocomplete** | Off | Inline AI suggestions in the editor |
 | **Reasoning effort** | *(unset)* | Low / Medium / High / XHigh — when supported by the model |
 | **Search mode** | Basic | `Basic` (quick) or `Advanced` (full agent/model/skills/tools config) |
 | **Search agent** | *(empty)* | Default agent for the Search tab |
@@ -716,7 +665,7 @@ Limit what the AI can see. Click the **folder** icon in the chat input bar to op
 
 ## Using your vault with GitHub Copilot in VS Code or Copilot CLI
 
-Your Sidekick agents, skills, prompts, and tools can also work with GitHub Copilot in VS Code (or the Copilot CLI). The trick is creating a `.github` symbolic link that points to your `sidekick` folder — Copilot automatically picks up instructions, agents, and MCP config from `.github/`.
+Your Copilot agents, skills, prompts, and tools can also work with GitHub Copilot in VS Code (or the Copilot CLI). The trick is creating a `.github` symbolic link that points to your `sidekick` folder — Copilot automatically picks up instructions, agents, and MCP config from `.github/`.
 
 ### Create the symlinks
 
@@ -752,12 +701,12 @@ With the symlinks in place, opening your vault folder in VS Code or GitHub Copil
 - **MCP servers** (`sidekick/tools/mcp.json`) — Copilot discovers and uses them automatically
 - **Prompts** (`sidekick/prompts/*.prompt.md`) — usable as reusable prompt files
 
-This means you can author your agents and tools once in Sidekick and use them seamlessly in both Obsidian, VS Code and GitHub Copilot CLI.
+This means you can author your agents and tools once in Copilot and use them seamlessly in both Obsidian, VS Code and GitHub Copilot CLI.
 
 ---
 
 ## Feedback
 
-Found a bug or missing a feature? [Open an issue](https://github.com/vieiraae/obsidian-sidekick/issues) — all feedback is welcome. If you find Sidekick useful, [give the repo a star](https://github.com/vieiraae/obsidian-sidekick) — it helps others discover it.
+Found a bug or missing a feature? [Open an issue](https://github.com/NunoMotaRicardo/obsidian-copilot/issues) — all feedback is welcome. If you find Copilot useful, [give the repo a star](https://github.com/NunoMotaRicardo/obsidian-copilot) — it helps others discover it.
 
-![Obsidian Sidekick](./docs/images/bottom-banner.png)
+![Obsidian Copilot](./docs/images/bottom-banner.png)

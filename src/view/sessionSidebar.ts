@@ -273,7 +273,7 @@ export function installSessionSidebar(ViewClass: {prototype: unknown}): void {
 
 	proto.getSessionType = function (session: SessionMetadata): 'chat' | 'inline' | 'trigger' | 'search' | 'other' {
 		const name = this.sessionNames[session.sessionId] || '';
-		debugTrace(`Sidekick: getSessionType id=${session.sessionId.slice(0, 8)} name="${name.slice(0, 40)}"`);
+		debugTrace(`Copilot: getSessionType id=${session.sessionId.slice(0, 8)} name="${name.slice(0, 40)}"`);
 		if (name.startsWith('[chat]')) return 'chat';
 		if (name.startsWith('[inline]')) return 'inline';
 		if (name.startsWith('[trigger]')) return 'trigger';

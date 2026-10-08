@@ -1,8 +1,4 @@
-/**
- * Shared task definitions used by the editor context menu, the gutter
- * brain-button, and the Edit modal.  Add a task here and it appears
- * everywhere automatically.
- */
+/** Text-transform tasks exposed as command-palette actions. */
 
 /** A single task the user can invoke on selected text. */
 export interface TextTask {
@@ -79,17 +75,6 @@ export const TASKS: readonly TextTask[] = [
 		prompt: (t) => `Summarize the following text concisely:\n\n${t}`,
 	},
 ] as const;
-
-/** Task label union type. */
-export type TaskLabel = typeof TASKS[number]['label'];
-
-/** All task labels as a simple array (for dropdowns / iteration). */
-export const TASK_LABELS = TASKS.map((t) => t.label);
-
-/** Look up a task by label. Falls back to the first task ('Rewrite'). */
-export function getTask(label: string): TextTask {
-	return TASKS.find((t) => t.label === label) ?? TASKS[0] as TextTask;
-}
 
 /** System message shared by all text-transform operations. */
 export const TEXT_ACTION_SYSTEM_MESSAGE =

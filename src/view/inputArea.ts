@@ -156,11 +156,6 @@ export function installInputArea(ViewClass: {prototype: unknown}): void {
 			this.handleFileDrop(e);
 		});
 
-		// Edit button (opens Edit modal with chat input text)
-		const editBtn = inputRow.createEl('button', {cls: 'clickable-icon sidekick-icon-btn', attr: {title: 'Edit text'}});
-		setIcon(editBtn, 'pencil-line');
-		editBtn.addEventListener('click', () => this.openEditFromChat());
-
 		// Send / Stop button
 		this.sendBtn = inputRow.createEl('button', {
 			cls: 'clickable-icon sidekick-send-btn',

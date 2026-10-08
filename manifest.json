@@ -1,10 +1,10 @@
 {
 	"id": "sidekick",
-	"name": "Sidekick",
-	"version": "1.2.3",
+	"name": "Copilot",
+	"version": "1.3.0",
 	"minAppVersion": "1.13.0",
-	"description": "Meet your AI sidekick — a second brain that brings agents, tools, skills, autocompletion, and smart workflows directly into your notes.",
-	"author": "Alex Vieira",
-	"authorUrl": "https://github.com/vieiraae/",
+	"description": "Chat with AI agents, use tools and skills, and edit or insert text directly in your notes.",
+	"author": "Nuno Ricardo",
+	"authorUrl": "https://github.com/NunoMotaRicardo/",
 	"isDesktopOnly": true
 }

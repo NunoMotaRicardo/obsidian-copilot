@@ -4,7 +4,6 @@ import type {ModelInfo, ReasoningEffort, ReasoningSummary, ContextTier} from '..
 import type {SidekickSettings} from '../settings';
 import type {AgentConfig} from '../types';
 import {FolderTreeModal} from '../modals';
-import {EditModal} from '../modals/editModal';
 import {setDebugEnabled} from '../debug';
 
 /** Selectable reasoning-summary modes (excludes '' = model default). */
@@ -63,7 +62,6 @@ declare module '../sidekickView' {
 		updateToolsBadge(): void;
 		openCwdPicker(): void;
 		updateCwdButton(): void;
-		openEditFromChat(): void;
 		resolveModelForAgent(agent: AgentConfig | undefined, fallback: string | undefined): string | undefined;
 	}
 }
@@ -438,16 +436,6 @@ export function installConfigToolbar(ViewClass: { prototype: unknown }): void {
 		const label = `Working directory: ${vaultName}/${this.workingDir}`;
 		this.cwdBtnEl.setAttribute('title', label);
 		this.cwdBtnEl.toggleClass('is-active', true);
-	};
-
-	proto.openEditFromChat = function(): void {
-		const text = this.inputEl.value.trim();
-		new EditModal(this.plugin, text, (result) => {
-			this.inputEl.value = result;
-			this.inputEl.setCssProps({'--input-height': 'auto'});
-			this.inputEl.setCssProps({'--input-height': Math.min(this.inputEl.scrollHeight, 200) + 'px'});
-			this.inputEl.focus();
-		}).open();
 	};
 
 	proto.resolveModelForAgent = function(agent: AgentConfig | undefined, fallback: string | undefined): string | undefined {

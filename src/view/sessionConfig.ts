@@ -265,6 +265,6 @@ export function getAdaptiveTimeout(
 		: 0;
 
 	const finalTimeout = Math.max(dynamicTimeout, configuredTimeoutMs);
-	debugTrace(`Sidekick: adaptive timeout calculated: ${finalTimeout}ms for ${fileCount} files in scope '${scopePath ?? ''}'`);
+	debugTrace(`Copilot: adaptive timeout calculated: ${finalTimeout}ms for ${fileCount} files in scope '${scopePath ?? ''}'`);
 	return finalTimeout;
 }

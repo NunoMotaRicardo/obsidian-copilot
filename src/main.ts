@@ -3,11 +3,9 @@ import {DEFAULT_SETTINGS, SidekickSettings, SidekickSettingTab, SECURE_FIELDS, l
 import {CopilotService} from "./copilot";
 import {fetchProviderModels} from "./providerModels";
 import {SidekickView, SIDEKICK_VIEW_TYPE} from "./sidekickView";
-import {registerEditorMenu, registerFileMenu, openSidekickView, showEditNoteModal, showStructureModal, runSelectionAction} from './editor/editorMenu';
-import {buildGhostTextExtension, triggerComplete} from './editor/ghostText';
+import {registerEditorMenu, registerFileMenu, openSidekickView, showEditNoteModal, showStructureModal, runSelectionAction, showTextEditModal} from './editor/editorMenu';
 import {TelegramBotService} from './bots';
 import {TASKS} from './tasks';
-import {EditModal} from './modals/editModal';
 import type {EditorView} from '@codemirror/view';
 
 export default class SidekickPlugin extends Plugin {
@@ -17,14 +15,13 @@ export default class SidekickPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-		this.applyInlineIconClass();
 		this.addSettingTab(new SidekickSettingTab(this.app, this));
 
 		// Register the Sidekick chat view
 		this.registerView(SIDEKICK_VIEW_TYPE, (leaf) => new SidekickView(leaf, this));
 
 		// Ribbon icon to open view
-		this.addRibbonIcon('brain', 'Open sidekick', () => void this.activateView());
+		this.addRibbonIcon('brain', 'Open Copilot', () => void this.activateView());
 
 		// Command to open view
 		this.addCommand({
@@ -44,7 +41,7 @@ export default class SidekickPlugin extends Plugin {
 		// Command: Chat with sidekick (send selection or open chat)
 		this.addCommand({
 			id: 'chat-with-sidekick',
-			name: 'Chat with sidekick',
+			name: 'Chat with Copilot',
 			hotkeys: [{modifiers: ['Mod', 'Shift'], key: 'l'}],
 			callback: () => {
 				const cmView = getEditorView();
@@ -91,23 +88,14 @@ export default class SidekickPlugin extends Plugin {
 			},
 		});
 
-		// Command: Edit selection (advanced editing modal)
+		// Command: Edit selection or insert at the cursor
 		this.addCommand({
 			id: 'edit-selection',
-			name: 'Edit selection',
+			name: 'Edit or insert text',
 			editorCallback: (_editor, view) => {
 				const cmView = (view as unknown as {editor?: {cm?: EditorView}}).editor?.cm;
 				if (!cmView) return;
-				const sel = cmView.state.selection.main;
-				if (sel.empty) {
-					new Notice('Sidekick: select some text first.');
-					return;
-				}
-				const selectedText = cmView.state.sliceDoc(sel.from, sel.to);
-				new EditModal(this, selectedText, (result: string) => {
-					const currentSel = cmView.state.selection.main;
-					cmView.dispatch({changes: {from: currentSel.from, to: currentSel.to, insert: result}});
-				}).open();
+				showTextEditModal(this, cmView);
 			},
 		});
 
@@ -121,7 +109,7 @@ export default class SidekickPlugin extends Plugin {
 					if (!cmView) return;
 					const sel = cmView.state.selection.main;
 					if (sel.empty) {
-						new Notice('Sidekick: select some text first.');
+						new Notice('Copilot: select some text first.');
 						return;
 					}
 					const selectedText = cmView.state.sliceDoc(sel.from, sel.to);
@@ -130,35 +118,11 @@ export default class SidekickPlugin extends Plugin {
 			});
 		}
 
-		// Command: Toggle autocomplete
-		this.addCommand({
-			id: 'toggle-autocomplete',
-			name: 'Toggle autocomplete',
-			callback: async () => {
-				this.settings.autocompleteEnabled = !this.settings.autocompleteEnabled;
-				await this.saveData(this.settings);
-				new Notice(`Sidekick: autocomplete ${this.settings.autocompleteEnabled ? 'enabled' : 'disabled'}.`);
-			},
-		});
-
-		// Command: Trigger autocomplete
-		this.addCommand({
-			id: 'trigger-autocomplete',
-			name: 'Trigger autocomplete',
-			editorCallback: (_editor, view) => {
-				const cmView = (view as unknown as {editor?: {cm?: EditorView}}).editor?.cm;
-				if (cmView) cmView.dispatch({effects: triggerComplete.of(null)});
-			},
-		});
-
-		// Editor context menu (Sidekick submenu for selected text)
+		// Editor context menu
 		registerEditorMenu(this);
 
 		// Vault tree context menu (Sidekick submenu for note files)
 		registerFileMenu(this);
-
-		// Ghost-text autocomplete (inline suggestions)
-		this.registerEditorExtension(buildGhostTextExtension(this));
 
 		try {
 			await this.initCopilot();
@@ -168,7 +132,7 @@ export default class SidekickPlugin extends Plugin {
 				await this.copilot.ensureConnected();
 			}
 		} catch (e) {
-			console.error('Sidekick: failed to initialize Copilot service', e);
+			console.error('Copilot: failed to initialize Copilot service', e);
 			const msg = e instanceof Error ? e.message : String(e);
 			// Try to detect "missing CLI" specifically (spawn ENOENT / not found), not any CLI error.
 			const detail = msg.match(/\(([^)]*)\)\./)?.[1] ?? msg;
@@ -198,7 +162,7 @@ export default class SidekickPlugin extends Plugin {
 		const onListModels = this.buildOnListModels();
 
 		const onVersionInfo = (status: {version: string; protocolVersion: number}) => {
-			console.info('Sidekick: Copilot CLI v%s (protocol %d)', status.version, status.protocolVersion);
+			console.info('Copilot: Copilot CLI v%s (protocol %d)', status.version, status.protocolVersion);
 		};
 
 		// Build BYOK provider config for inline/editor operations
@@ -291,7 +255,6 @@ export default class SidekickPlugin extends Plugin {
 	}
 
 	onunload() {
-		document.body.removeClass('sidekick-no-inline-icon');
 		if (this.copilot) {
 			void this.copilot.stop();
 		}
@@ -363,10 +326,6 @@ export default class SidekickPlugin extends Plugin {
 		}
 	}
 
-	applyInlineIconClass() {
-		document.body.toggleClass('sidekick-no-inline-icon', !this.settings.inlineIconEnabled);
-	}
-
 	async saveSettings() {
 		// Clone settings and strip secure fields before writing to data.json
 		const dataToSave = {...this.settings};
@@ -374,6 +333,5 @@ export default class SidekickPlugin extends Plugin {
 			(dataToSave as Record<string, unknown>)[key] = '';
 		}
 		await this.saveData(dataToSave);
-		this.applyInlineIconClass();
 	}
 }

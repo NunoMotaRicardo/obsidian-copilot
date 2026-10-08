@@ -310,7 +310,7 @@ export function installTriggersPanel(ViewClass: {prototype: unknown}): void {
 
 		const scheduleFileChangeCheck = (filePath: string) => {
 			if (filePath.startsWith(sidekickFolder + '/') || filePath.startsWith('.sidekick-attachments/')) {
-				debugTrace(`Sidekick: ignoring change in excluded folder: ${filePath}`);
+				debugTrace(`Copilot: ignoring change in excluded folder: ${filePath}`);
 				return;
 			}
 			pendingFilePaths.add(filePath);
@@ -320,7 +320,7 @@ export function installTriggersPanel(ViewClass: {prototype: unknown}): void {
 				const paths = [...pendingFilePaths];
 				pendingFilePaths.clear();
 				for (const p of paths) {
-					debugTrace(`Sidekick: vault file-change event (debounced): ${p}`);
+					debugTrace(`Copilot: vault file-change event (debounced): ${p}`);
 					this.triggerScheduler?.checkFileChangeTriggers(p);
 				}
 			}, FILE_CHANGE_DEBOUNCE);
@@ -353,7 +353,7 @@ export function installTriggersPanel(ViewClass: {prototype: unknown}): void {
 	 */
 	proto.fireTriggerInBackground = async function (trigger: TriggerConfig, context?: TriggerFireContext): Promise<void> {
 		if (!this.plugin.copilot) {
-			console.warn('Sidekick: trigger skipped — no copilot client available');
+			console.warn('Copilot: trigger skipped — no copilot client available');
 			return;
 		}
 
@@ -429,7 +429,7 @@ export function installTriggersPanel(ViewClass: {prototype: unknown}): void {
 
 			new Notice(`Trigger fired: ${trigger.description || trigger.name}`);
 		} catch (e) {
-			console.error('Sidekick: trigger failed', trigger.name, e);
+			console.error('Copilot: trigger failed', trigger.name, e);
 			new Notice(`Trigger failed: ${trigger.description || trigger.name} — ${String(e)}`);
 		}
 	};

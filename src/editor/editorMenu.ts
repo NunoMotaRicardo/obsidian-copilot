@@ -5,10 +5,8 @@ import {approveAll} from '../copilot';
 import type {PermissionRequest, PermissionRequestResult, UserInputRequest, UserInputResponse} from '../copilot';
 import {loadSkills} from '../configLoader';
 import {getSkillsFolder} from '../settings';
-import {setFetching, triggerComplete} from './ghostText';
 import {SIDEKICK_VIEW_TYPE, SidekickView} from '../sidekickView';
-import {EditModal} from '../modals/editModal';
-import {TASKS, TEXT_ACTION_SYSTEM_MESSAGE} from '../tasks';
+import {TEXT_ACTION_SYSTEM_MESSAGE} from '../tasks';
 import type {TextTask} from '../tasks';
 import type {SelectionInfo} from '../types';
 import {formatErrorForNotice} from '../ollamaErrors';
@@ -17,11 +15,7 @@ import {formatErrorForNotice} from '../ollamaErrors';
 export {TEXT_ACTION_SYSTEM_MESSAGE} from '../tasks';
 export type {TextTask as TextAction} from '../tasks';
 
-/**
- * Register a "Sidekick" submenu on the editor right-click context menu.
- * Shows selection-level actions when text is selected, or note-level
- * actions when nothing is selected.
- */
+/** Add one selection-aware Copilot action to the editor context menu. */
 export function registerEditorMenu(plugin: SidekickPlugin): void {
 	plugin.registerEvent(
 		(plugin.app.workspace as unknown as {on: (name: string, cb: (menu: Menu, editor: Editor, view: MarkdownView) => void) => EventRef}).on('editor-menu', (menu: Menu, editor: Editor, view: MarkdownView) => {
@@ -29,11 +23,10 @@ export function registerEditorMenu(plugin: SidekickPlugin): void {
 			if (!cmView) return;
 
 			menu.addItem((item) => {
-				item.setTitle('Sidekick')
-					.setIcon('brain');
-
-				const submenu: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
-				buildSidekickMenu(submenu, plugin, cmView);
+				const selection = cmView.state.selection.main;
+				item.setTitle(selection.empty ? 'Copilot insert' : 'Copilot edit')
+					.setIcon('pencil')
+					.onClick(() => showTextEditModal(plugin, cmView, selection));
 			});
 		}),
 	);
@@ -76,7 +69,7 @@ export function registerFileMenu(plugin: SidekickPlugin): void {
 			if (abstractFile.extension !== 'md') return;
 
 			menu.addItem((item) => {
-				item.setTitle('Sidekick')
+				item.setTitle('Copilot')
 					.setIcon('brain');
 
 				const submenu: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
@@ -101,7 +94,7 @@ export function registerFileMenu(plugin: SidekickPlugin): void {
 				submenu.addSeparator();
 
 				submenu.addItem((si) =>
-					si.setTitle('Chat with sidekick')
+					si.setTitle('Chat with Copilot')
 						.setIcon('brain')
 						.onClick(async () => {
 							const leaf = plugin.app.workspace.getLeaf();
@@ -110,25 +103,6 @@ export function registerFileMenu(plugin: SidekickPlugin): void {
 						}),
 				);
 
-				submenu.addSeparator();
-
-				submenu.addItem((si) => {
-					si.setTitle('Autocomplete')
-						.setIcon('sparkles')
-						.setChecked(plugin.settings.autocompleteEnabled);
-					const acSub: Menu = (si as unknown as {setSubmenu: () => Menu}).setSubmenu();
-
-					const autoEnabled = plugin.settings.autocompleteEnabled;
-					acSub.addItem((ai) =>
-						ai.setTitle(autoEnabled ? 'Disable' : 'Enable')
-							.setIcon(autoEnabled ? 'toggle-right' : 'toggle-left')
-							.onClick(async () => {
-								plugin.settings.autocompleteEnabled = !autoEnabled;
-								await plugin.saveData(plugin.settings);
-								new Notice(`Sidekick: autocomplete ${plugin.settings.autocompleteEnabled ? 'enabled' : 'disabled'}.`);
-							}),
-					);
-				});
 			});
 		}),
 	);
@@ -141,7 +115,7 @@ const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 's
 /** Add Sidekick submenu items for a folder in the vault tree. */
 function buildFolderMenu(menu: Menu, plugin: SidekickPlugin, folder: TFolder): void {
 	menu.addItem((item) => {
-		item.setTitle('Sidekick')
+		item.setTitle('Copilot')
 			.setIcon('brain');
 
 		const submenu: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
@@ -170,7 +144,7 @@ function buildFolderMenu(menu: Menu, plugin: SidekickPlugin, folder: TFolder): v
 				.onClick(() => void openSidekickSearchWithScope(plugin, folder.path)),
 		);
 		submenu.addItem((si) =>
-			si.setTitle('Chat with sidekick')
+			si.setTitle('Chat with Copilot')
 				.setIcon('brain')
 				.onClick(() => void openSidekickViewWithScope(plugin, folder.path)),
 		);
@@ -243,7 +217,7 @@ async function createNewNote(plugin: SidekickPlugin, folder: TFolder, templateTy
 		? `The note should follow a "${templateType}" template. `
 		: '';
 
-	const notice = new Notice('Sidekick: creating note…', 0);
+	const notice = new Notice('Copilot: creating note…', 0);
 	try {
 		// Ask the LLM for a suggested filename and structured content
 		const {content: result, sessionId} = await plugin.copilot.inlineChat({
@@ -261,7 +235,7 @@ async function createNewNote(plugin: SidekickPlugin, folder: TFolder, templateTy
 		});
 		registerInlineSession(plugin, sessionId, `New note in ${folder.name}`);
 
-		if (!result) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+		if (!result) { notice.hide(); new Notice('Copilot: no response.'); return; }
 
 		// Parse title and content
 		let title = 'New note';
@@ -283,7 +257,7 @@ async function createNewNote(plugin: SidekickPlugin, folder: TFolder, templateTy
 
 		const newFile = await plugin.app.vault.create(filePath, content);
 		notice.hide();
-		new Notice(`Sidekick: created "${basename}".`);
+		new Notice(`Copilot: created "${basename}".`);
 
 		// Open the new note
 		const leaf = plugin.app.workspace.getLeaf();
@@ -331,7 +305,7 @@ async function createNewCanvas(plugin: SidekickPlugin, folder: TFolder, template
 		? `The canvas should follow a "${templateType}" template. `
 		: '';
 
-	const notice = new Notice('Sidekick: creating canvas\u2026', 0);
+	const notice = new Notice('Copilot: creating canvas\u2026', 0);
 	try {
 		const {content: result, sessionId} = await plugin.copilot.inlineChat({
 			prompt:
@@ -355,7 +329,7 @@ async function createNewCanvas(plugin: SidekickPlugin, folder: TFolder, template
 		});
 		registerInlineSession(plugin, sessionId, `New canvas in ${folder.name}`);
 
-		if (!result) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+		if (!result) { notice.hide(); new Notice('Copilot: no response.'); return; }
 
 		// Parse title and content
 		let title = 'New canvas';
@@ -379,7 +353,7 @@ async function createNewCanvas(plugin: SidekickPlugin, folder: TFolder, template
 			content = JSON.stringify(parsed, null, '\t');
 		} catch (e) {
 			notice.hide();
-			new Notice(`Sidekick: invalid canvas format \u2014 ${String(e)}`);
+			new Notice(`Copilot: invalid canvas format \u2014 ${String(e)}`);
 			return;
 		}
 
@@ -390,7 +364,7 @@ async function createNewCanvas(plugin: SidekickPlugin, folder: TFolder, template
 
 		const newFile = await plugin.app.vault.create(filePath, content);
 		notice.hide();
-		new Notice(`Sidekick: created "${basename}".`);
+		new Notice(`Copilot: created "${basename}".`);
 
 		// Open the new canvas
 		const leaf = plugin.app.workspace.getLeaf();
@@ -410,11 +384,11 @@ async function createSummaryNote(plugin: SidekickPlugin, folder: TFolder): Promi
 		.sort((a, b) => a.basename.localeCompare(b.basename));
 
 	if (mdFiles.length === 0) {
-		new Notice('Sidekick: no notes found in this folder.');
+		new Notice('Copilot: no notes found in this folder.');
 		return;
 	}
 
-	const notice = new Notice('Sidekick: creating summary…', 0);
+	const notice = new Notice('Copilot: creating summary…', 0);
 	try {
 		// Read all notes (truncate each to keep within context limits)
 		const MAX_PER_NOTE = 2000;
@@ -439,14 +413,14 @@ async function createSummaryNote(plugin: SidekickPlugin, folder: TFolder): Promi
 		});
 		registerInlineSession(plugin, sessionId, `Summary of ${folder.name}`);
 
-		if (!result) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+		if (!result) { notice.hide(); new Notice('Copilot: no response.'); return; }
 
 		const basename = uniqueNoteName(folder, `${folder.name} — Summary`);
 		const filePath = normalizePath(`${folder.path}/${basename}.md`);
 
 		const newFile = await plugin.app.vault.create(filePath, result.trim());
 		notice.hide();
-		new Notice(`Sidekick: created "${basename}".`);
+		new Notice(`Copilot: created "${basename}".`);
 
 		const leaf = plugin.app.workspace.getLeaf();
 		await leaf.openFile(newFile);
@@ -471,15 +445,14 @@ export async function runSelectionAction(
 		return;
 	}
 
-	const notice = new Notice(`Sidekick: ${action.label}…`, 0);
-	try { view.dispatch({effects: setFetching.of(true)}); } catch { /* ignore */ }
+	const notice = new Notice(`Copilot: ${action.label}…`, 0);
 
 	try {
 		const result = await runActionPrompt(plugin, action, selectedText);
 
 		if (!result) {
 			notice.hide();
-			new Notice('Sidekick: no response received.');
+			new Notice('Copilot: no response received.');
 			return;
 		}
 
@@ -489,14 +462,85 @@ export async function runSelectionAction(
 			changes: {from: sel.from, to: sel.to, insert: result.trim()},
 		});
 		notice.hide();
-		new Notice(`Sidekick: ${action.label} — done.`);
+		new Notice(`Copilot: ${action.label} — done.`);
 	} catch (e) {
 		notice.hide();
-		console.error('Sidekick: editor action error', e);
+		console.error('Copilot: editor action error', e);
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
-	} finally {
-		try { view.dispatch({effects: setFetching.of(false)}); } catch { /* view destroyed */ }
 	}
+}
+
+/** Request an edit or insertion without the advanced text-editing form. */
+export function showTextEditModal(
+	plugin: SidekickPlugin,
+	view: EditorView,
+	range: {from: number; to: number} = view.state.selection.main,
+): void {
+	const doc = view.state.doc;
+	const markdownView = plugin.app.workspace.getLeavesOfType('markdown')
+		.map(leaf => leaf.view)
+		.find(candidate => candidate instanceof MarkdownView &&
+			(candidate.editor as unknown as {cm?: EditorView}).cm === view);
+	const filePath = markdownView instanceof MarkdownView ? markdownView.file?.path : undefined;
+	const {from, to} = range;
+	const selectedText = doc.sliceString(from, to);
+	const title = from === to ? 'Copilot insert' : 'Copilot edit';
+	const modal = new Modal(plugin.app);
+	modal.titleEl.setText(title);
+	const input = new TextComponent(modal.contentEl);
+	input.inputEl.classList.add('sidekick-modal-text-input');
+	input.setPlaceholder(from === to ? 'Describe what to insert' : 'Describe the edit');
+	const buttons = modal.contentEl.createDiv({cls: 'modal-button-container'});
+	const apply = buttons.createEl('button', {text: 'Apply', cls: 'mod-cta'});
+	buttons.createEl('button', {text: 'Cancel'}).addEventListener('click', () => modal.close());
+	apply.addEventListener('click', () => {
+		const instruction = input.getValue().trim();
+		if (!instruction) {
+			new Notice('Please enter an instruction.');
+			return;
+		}
+		modal.close();
+		void (async () => {
+			if (!plugin.copilot) {
+				new Notice('Copilot is not configured.');
+				return;
+			}
+			const notice = new Notice(`${title}: working...`, 0);
+			try {
+				const result = await runActionPrompt(plugin, {
+					label: title,
+					icon: 'pencil',
+					emoji: '',
+					prompt: () => from === to
+						? `Write text to insert at the cursor according to this instruction:\n${instruction}\n\n` +
+							`CONTEXT BEFORE CURSOR:\n${doc.sliceString(0, from)}\n\nCONTEXT AFTER CURSOR:\n${doc.sliceString(to)}\n\n` +
+							'Return ONLY the text to insert, not the surrounding note.'
+						: `Edit the following text according to this instruction:\n${instruction}\n\nTEXT:\n${selectedText}\n\n` +
+							'Return ONLY the replacement text.',
+				}, selectedText);
+				if (!result?.trim()) {
+					new Notice('Copilot: no response received.');
+					return;
+				}
+				// Do not overwrite intervening edits or apply to a different note.
+				if (!view.dom.isConnected || !view.state.doc.eq(doc) ||
+					(markdownView instanceof MarkdownView && markdownView.file?.path !== filePath)) {
+					new Notice('Copilot: the note changed or closed. Run the action again.');
+					return;
+				}
+				view.dispatch({changes: {from, to, insert: result}});
+				view.focus();
+			} catch (error) {
+				console.error('Copilot: text edit failed', error);
+				new Notice(formatErrorForNotice(error, plugin.settings.providerPreset));
+			} finally {
+				notice.hide();
+			}
+		})();
+	});
+	modal.scope.register([], 'Enter', () => { apply.click(); return false; });
+	modal.open();
+	input.inputEl.focus();
 }
 
 /**
@@ -578,74 +622,6 @@ async function runActionPrompt(
 
 /* ── Image context menu ───────────────────────────────────────── */
 
-const IMAGE_EXT_PATTERN = Array.from(IMAGE_EXTENSIONS).join('|');
-
-/** Regex for wikilink image embed: ![[filename.ext]] or ![[filename.ext|alt]] */
-const WIKILINK_IMAGE_RE = new RegExp(`!\\[\\[([^\\]|]+\\.(?:${IMAGE_EXT_PATTERN}))(?:\\|[^\\]]*)?\\]\\]`, 'i');
-/** Regex for standard markdown image embed: ![alt](path.ext) */
-const MARKDOWN_IMAGE_RE = new RegExp(`!\\[[^\\]]*\\]\\(([^)]+\\.(?:${IMAGE_EXT_PATTERN}))\\)`, 'i');
-
-/**
- * Check whether the cursor line contains an image embed and resolve the
- * referenced file. Returns the resolved TFile or null.
- */
-function resolveImageEmbedOnLine(
-	plugin: SidekickPlugin,
-	view: EditorView,
-): {file: TFile; embed: {from: number; to: number}} | null {
-	const sel = view.state.selection.main;
-	const line = view.state.doc.lineAt(sel.head);
-	const lineText = line.text;
-
-	let linkpath: string | null = null;
-	let matchFrom = 0;
-	let matchLength = 0;
-	const wikiMatch = WIKILINK_IMAGE_RE.exec(lineText);
-	if (wikiMatch && wikiMatch[1]) {
-		linkpath = wikiMatch[1];
-		matchFrom = wikiMatch.index;
-		matchLength = wikiMatch[0].length;
-	} else {
-		const mdMatch = MARKDOWN_IMAGE_RE.exec(lineText);
-		if (mdMatch && mdMatch[1]) {
-			linkpath = mdMatch[1];
-			matchFrom = mdMatch.index;
-			matchLength = mdMatch[0].length;
-		}
-	}
-	if (!linkpath) return null;
-
-	const activeFile = plugin.app.workspace.getActiveFile();
-	const resolved = plugin.app.metadataCache.getFirstLinkpathDest(linkpath, activeFile?.path ?? '');
-	if (!resolved || !IMAGE_EXTENSIONS.has(resolved.extension.toLowerCase())) return null;
-	return {
-		file: resolved,
-		embed: {from: line.from + matchFrom, to: line.from + matchFrom + matchLength},
-	};
-}
-
-/**
- * Populate a menu with image-specific Sidekick actions for editor context menu.
- * Shown when the cursor is on a line containing an image embed.
- */
-function buildEditorImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile, embed: {from: number; to: number}): void {
-	menu.addItem((item) =>
-		item.setTitle('Extract text below')
-			.setIcon('arrow-down-to-line')
-			.onClick(() => void extractAndInsertBelow(plugin, file, embed)),
-	);
-	menu.addItem((item) =>
-		item.setTitle('Convert to mermaid below')
-			.setIcon('git-fork')
-			.onClick(() => void convertToMermaidBelow(plugin, file, embed)),
-	);
-	menu.addItem((item) =>
-		item.setTitle('Ask about image')
-			.setIcon('message-circle')
-			.onClick(() => showAskAboutImageModal(plugin, file, embed)),
-	);
-}
-
 /** "Ask about image" — user enters a free-form prompt about the image. */
 function showAskAboutImageModal(plugin: SidekickPlugin, file: TFile, embedHint?: {from: number; to: number}): void {
 	const modal = new Modal(plugin.app);
@@ -687,7 +663,7 @@ async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: st
 	const {cmView, embed} = ctx;
 
 	const absPath = getAbsolutePath(plugin, file);
-	const notice = new Notice('Sidekick: asking about image…', 0);
+	const notice = new Notice('Copilot: asking about image…', 0);
 	try {
 		const {content: result, sessionId} = await plugin.copilot.inlineChat({
 			prompt: userPrompt,
@@ -700,11 +676,11 @@ async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: st
 		registerInlineSession(plugin, sessionId, `Ask: ${userPrompt.slice(0, 30)}`);
 
 		const raw = result?.trim() ?? null;
-		if (!raw) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+		if (!raw) { notice.hide(); new Notice('Copilot: no response.'); return; }
 
 		insertBelowEmbed(cmView, embed, raw);
 		notice.hide();
-		new Notice('Sidekick: response inserted.');
+		new Notice('Copilot: response inserted.');
 	} catch (e) {
 		notice.hide();
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
@@ -714,7 +690,7 @@ async function askAboutImage(plugin: SidekickPlugin, file: TFile, userPrompt: st
 /** Add Sidekick submenu items for an image file in the vault tree. */
 function buildImageMenu(menu: Menu, plugin: SidekickPlugin, file: TFile): void {
 	menu.addItem((item) => {
-		item.setTitle('Sidekick')
+		item.setTitle('Copilot')
 			.setIcon('brain');
 
 		const submenu: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
@@ -846,7 +822,7 @@ function getActiveEditorAndEmbed(
 ): {cmView: EditorView; embed: {from: number; to: number}} | null {
 	const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
 	if (!activeView) {
-		new Notice('Sidekick: open a note that contains this image first.');
+		new Notice('Copilot: open a note that contains this image first.');
 		return null;
 	}
 	const cmView: EditorView | undefined = (activeView as unknown as {editor?: {cm?: EditorView}}).editor?.cm;
@@ -854,7 +830,7 @@ function getActiveEditorAndEmbed(
 
 	const embed = embedHint ?? findImageEmbed(cmView, file);
 	if (!embed) {
-		new Notice(`Sidekick: could not find a reference to "${file.name}" in the active note.`);
+		new Notice(`Copilot: could not find a reference to "${file.name}" in the active note.`);
 		return null;
 	}
 	return {cmView, embed};
@@ -872,14 +848,14 @@ async function extractAndInsertBelow(plugin: SidekickPlugin, file: TFile, embedH
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
-	const notice = new Notice('Sidekick: extracting image content…', 0);
+	const notice = new Notice('Copilot: extracting image content…', 0);
 	try {
 		const content = await extractImageContent(plugin, file);
-		if (!content) { notice.hide(); new Notice('Sidekick: no content extracted.'); return; }
+		if (!content) { notice.hide(); new Notice('Copilot: no content extracted.'); return; }
 
 		insertBelowEmbed(cmView, embed, content);
 		notice.hide();
-		new Notice('Sidekick: extracted content inserted.');
+		new Notice('Copilot: extracted content inserted.');
 	} catch (e) {
 		notice.hide();
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
@@ -892,16 +868,16 @@ async function extractAndReplace(plugin: SidekickPlugin, file: TFile): Promise<v
 	if (!ctx) return;
 	const {cmView, embed} = ctx;
 
-	const notice = new Notice('Sidekick: extracting image content…', 0);
+	const notice = new Notice('Copilot: extracting image content…', 0);
 	try {
 		const content = await extractImageContent(plugin, file);
-		if (!content) { notice.hide(); new Notice('Sidekick: no content extracted.'); return; }
+		if (!content) { notice.hide(); new Notice('Copilot: no content extracted.'); return; }
 
 		cmView.dispatch({
 			changes: {from: embed.from, to: embed.to, insert: content},
 		});
 		notice.hide();
-		new Notice('Sidekick: image replaced with extracted content.');
+		new Notice('Copilot: image replaced with extracted content.');
 	} catch (e) {
 		notice.hide();
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
@@ -918,7 +894,7 @@ async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedH
 
 	const absPath = getAbsolutePath(plugin, file);
 	const mermaidSkillOptions = await getInlineSkillOptions(plugin, ['mermaid']);
-	const notice = new Notice('Sidekick: converting image to Mermaid diagram…', 0);
+	const notice = new Notice('Copilot: converting image to Mermaid diagram…', 0);
 	try {
 		const {content: result, sessionId} = await plugin.copilot.inlineChat({
 			prompt:
@@ -939,7 +915,7 @@ async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedH
 		registerInlineSession(plugin, sessionId, `Mermaid ${file.name}`);
 
 		const raw = result?.trim() ?? null;
-		if (!raw) { notice.hide(); new Notice('Sidekick: no diagram generated.'); return; }
+		if (!raw) { notice.hide(); new Notice('Copilot: no diagram generated.'); return; }
 
 		// Extract the first ```mermaid fenced block, or wrap bare Mermaid content in a fence
 		const fenceMatch = /```mermaid\b[\s\S]*?```/i.exec(raw);
@@ -951,7 +927,7 @@ async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedH
 			const looksLikeMermaid = /^\s*(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|timeline|gitGraph|block-beta|xychart-beta)\b/im.test(raw);
 			if (!looksLikeMermaid) {
 				notice.hide();
-				new Notice('Sidekick: could not find a valid Mermaid diagram in the response.');
+				new Notice('Copilot: could not find a valid Mermaid diagram in the response.');
 				return;
 			}
 			mermaid = '```mermaid\n' + raw + '\n```';
@@ -959,7 +935,7 @@ async function convertToMermaidBelow(plugin: SidekickPlugin, file: TFile, embedH
 
 		insertBelowEmbed(cmView, embed, mermaid);
 		notice.hide();
-		new Notice('Sidekick: Mermaid diagram inserted.');
+		new Notice('Copilot: Mermaid diagram inserted.');
 	} catch (e) {
 		notice.hide();
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
@@ -1003,8 +979,7 @@ export function showEditNoteModal(plugin: SidekickPlugin, view: EditorView): voi
 async function applyEditNote(plugin: SidekickPlugin, view: EditorView, userPrompt: string): Promise<void> {
 	if (!plugin.copilot) { new Notice('Copilot is not configured.'); return; }
 	const doc = view.state.doc.toString();
-	const notice = new Notice('Sidekick: editing note…', 0);
-	view.dispatch({effects: setFetching.of(true)});
+	const notice = new Notice('Copilot: editing note…', 0);
 	try {
 		const {content: result, sessionId} = await plugin.copilot.inlineChat({
 			prompt:
@@ -1016,15 +991,13 @@ async function applyEditNote(plugin: SidekickPlugin, view: EditorView, userPromp
 				'Do not include explanations, markdown code fences, or introductory text. Return the full note.',
 		});
 		registerInlineSession(plugin, sessionId, `Edit: ${userPrompt.slice(0, 30)}`);
-		if (!result) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+		if (!result) { notice.hide(); new Notice('Copilot: no response.'); return; }
 		view.dispatch({changes: {from: 0, to: view.state.doc.length, insert: result.trim()}});
 		notice.hide();
-		new Notice('Sidekick: note edited.');
+		new Notice('Copilot: note edited.');
 	} catch (e) {
 		notice.hide();
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
-	} finally {
-		try { view.dispatch({effects: setFetching.of(false)}); } catch { /* view destroyed */ }
 	}
 }
 
@@ -1062,8 +1035,7 @@ export function showStructureModal(plugin: SidekickPlugin, view: EditorView): vo
 async function applyStructure(plugin: SidekickPlugin, view: EditorView, templateType: string): Promise<void> {
 	if (!plugin.copilot) { new Notice('Copilot is not configured.'); return; }
 	const doc = view.state.doc.toString();
-	const notice = new Notice('Sidekick: structuring note…', 0);
-	view.dispatch({effects: setFetching.of(true)});
+	const notice = new Notice('Copilot: structuring note…', 0);
 
 	const templateClause = templateType
 		? `Structure the note as a "${templateType}" template. `
@@ -1081,15 +1053,13 @@ async function applyStructure(plugin: SidekickPlugin, view: EditorView, template
 				'Do not include explanations, markdown code fences, or introductory text. Return the full note.',
 		});
 		registerInlineSession(plugin, sessionId, 'Structure and refine');
-		if (!result) { notice.hide(); new Notice('Sidekick: no response.'); return; }
+		if (!result) { notice.hide(); new Notice('Copilot: no response.'); return; }
 		view.dispatch({changes: {from: 0, to: view.state.doc.length, insert: result.trim()}});
 		notice.hide();
-		new Notice('Sidekick: note structured.');
+		new Notice('Copilot: note structured.');
 	} catch (e) {
 		notice.hide();
 		new Notice(formatErrorForNotice(e, plugin.settings.providerPreset));
-	} finally {
-		try { view.dispatch({effects: setFetching.of(false)}); } catch { /* view destroyed */ }
 	}
 }
 
@@ -1148,118 +1118,4 @@ async function openSidekickSearchWithScope(plugin: SidekickPlugin, folderPath: s
 		const view = leaves[0].view as SidekickView;
 		view.openSearchWithScope(folderPath);
 	}
-}
-
-/**
- * Populate a menu with Sidekick actions. Used by both the context menu
- * and the gutter brain-button to keep behaviour consistent.
- *
- * @param menu      The Obsidian Menu (or submenu) to populate.
- * @param plugin    The Sidekick plugin instance.
- * @param view      The CM6 EditorView.
- */
-export function buildSidekickMenu(menu: Menu, plugin: SidekickPlugin, view: EditorView): void {
-	const sel = view.state.selection.main;
-	const hasSelection = !sel.empty;
-
-	// ── Image embed on cursor line — show image actions ──
-	const imageResult = resolveImageEmbedOnLine(plugin, view);
-	if (imageResult) {
-		buildEditorImageMenu(menu, plugin, imageResult.file, imageResult.embed);
-		return;
-	}
-
-	if (hasSelection) {
-		// ── Selection: text-transform actions ──
-		const selectedText = view.state.sliceDoc(sel.from, sel.to);
-
-		// Edit — advanced editing with tone, length, choices
-		menu.addItem((item) =>
-			item.setTitle('Edit')
-				.setIcon('pencil-line')
-				.onClick(() => {
-					new EditModal(plugin, selectedText, (result) => {
-						const currentSel = view.state.selection.main;
-						view.dispatch({
-							changes: {from: currentSel.from, to: currentSel.to, insert: result},
-						});
-					}).open();
-				}),
-		);
-		menu.addSeparator();
-
-		for (const action of TASKS) {
-			menu.addItem((item) =>
-				item.setTitle(action.label)
-					.setIcon(action.icon)
-					.onClick(() => void runSelectionAction(plugin, view, selectedText, action)),
-			);
-		}
-	} else {
-		// ── No selection: note-level actions ──
-		menu.addItem((item) =>
-			item.setTitle('Edit the note')
-				.setIcon('pencil')
-				.onClick(() => showEditNoteModal(plugin, view)),
-		);
-		menu.addItem((item) =>
-			item.setTitle('Structure and refine')
-				.setIcon('layout-list')
-				.onClick(() => showStructureModal(plugin, view)),
-		);
-	}
-
-	menu.addSeparator();
-
-	menu.addItem((item) =>
-		item.setTitle('Chat with sidekick')
-			.setIcon('brain')
-			.onClick(() => {
-				if (hasSelection) {
-					const text = view.state.sliceDoc(sel.from, sel.to);
-					const startLine = view.state.doc.lineAt(sel.from);
-					const endLine = view.state.doc.lineAt(sel.to);
-					const activeFile = plugin.app.workspace.getActiveFile();
-					const filePath = activeFile?.path;
-					const fileName = activeFile?.name ?? 'unknown';
-					openSidekickView(plugin, text, {
-						filePath,
-						fileName,
-						startLine: startLine.number,
-						startChar: sel.from - startLine.from,
-						endLine: endLine.number,
-						endChar: sel.to - endLine.from,
-					});
-				} else {
-					openSidekickView(plugin);
-				}
-			}),
-	);
-
-	// ── Autocomplete submenu ──
-	menu.addSeparator();
-	menu.addItem((item) => {
-		item.setTitle('Autocomplete')
-			.setIcon('sparkles')
-			.setChecked(plugin.settings.autocompleteEnabled);
-		const sub: Menu = (item as unknown as {setSubmenu: () => Menu}).setSubmenu();
-
-		const autoEnabled = plugin.settings.autocompleteEnabled;
-		sub.addItem((si) =>
-			si.setTitle(autoEnabled ? 'Disable' : 'Enable')
-				.setIcon(autoEnabled ? 'toggle-right' : 'toggle-left')
-				.onClick(async () => {
-					plugin.settings.autocompleteEnabled = !autoEnabled;
-					await plugin.saveData(plugin.settings);
-					new Notice(`Sidekick: autocomplete ${plugin.settings.autocompleteEnabled ? 'enabled' : 'disabled'}.`);
-				}),
-		);
-		sub.addItem((si) =>
-			si.setTitle('Start')
-				.setIcon('play')
-				.onClick(() => {
-					view.dispatch({effects: triggerComplete.of(null)});
-				}),
-		);
-	});
 }
